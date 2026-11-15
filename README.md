@@ -13,6 +13,10 @@ It uses only the Python standard library (3.10+), and none of the APIs it calls 
 
 If one source fails, the scan continues with the others and prints a warning.
 
+**Duplicate merging.** Many markets appear in both sources under different names (DefiLlama "SIRLOINUSDC" and Merkl "Supply to Steakhouse High Yield USDC vault on Morpho"). These are merged into one row with source `defillama+merkl`. Two rows merge only if they are on the same chain and protocol family, their TVL is within 5%, and they share a deposit token (by symbol, including vault share tokens, or by contract address).
+
+The merged row keeps DefiLlama's base APY, 30-day mean and risk data, and takes Merkl's readable name, protocol app link, reward token symbols and USD/day. A second pass folds markets that one source lists twice under two protocol names; it needs identical numbers and at least $50k TVL. Both original rows are kept in the JSON output under `extra.merged_from` / `extra.duplicates`. Use `--no-merge` to see the raw rows.
+
 In a live run on 2026-11-15, a full scan took about 3 seconds and returned **2,057 incentivized markets** (DefiLlama 1,477 + Merkl 580) on more than 20 chains, worth about $4.6M/day in rewards.
 
 DefiLlama reports reward tokens as contract addresses. Where Merkl knows the same token on the same chain, the address is replaced with its symbol.
@@ -39,8 +43,14 @@ incentives scan -t lp -c base,arbitrum --min-tvl 1e6 --min-reward-apr 10
 # Stablecoin lending/borrowing rewards, excluding outliers and thin markets
 incentives scan -t lending,borrowing --stable --safe --sort reward_apr
 
-# Anything paying rewards on USDC, ranked by USD emitted per day
+# Markets where you deposit USDC, ranked by USD emitted per day
 incentives scan --token USDC --sort daily_rewards -n 100
+
+# USDC lending on Base
+incentives scan -c base -t lending --token USDC
+
+# Anything paying rewards in MORPHO
+incentives scan --reward-token MORPHO
 
 # Trading / volume incentives only
 incentives scan -t trading
@@ -55,7 +65,9 @@ incentives scan -n 0 -f csv  -o reports/incentives.csv
 incentives scan -f json | jq '.opportunities[0]'
 ```
 
-Types (`-t`): `lp`, `trading`, `lending`, `borrowing`, `staking`, `holding`, `other`.
+Types (`-t`): `lp`, `trading`, `lending`, `borrowing`, `collateral`, `staking`, `holding`, `other`.
+
+`--token` matches the asset you **deposit**, and `--reward-token` matches the asset you're **paid in**. `collateral` covers campaigns that reward posting collateral (e.g. "Deposit USDe as collateral on USDe/USDC"). These are kept out of `lending`, and `--token` matches only their collateral asset, so the example appears under USDe, not USDC.
 
 `trading` means rewards for swapping or buying (Merkl `SWAP` campaigns). Deposits into perp or DEX vaults (GLP/GLV/HLP style) count as `lp`, because you earn by supplying liquidity, not by trading.
 Sort keys: `score`, `reward_apr`, `total_apr`, `tvl`, `daily_rewards`.
@@ -80,7 +92,8 @@ API responses are cached in `~/.cache/incentive-analyzer` for 10 minutes. Change
 | `il_risk` | Impermanent-loss exposure |
 | `apr_spike` | Current APR is over 2× its 30-day mean |
 | `net_negative` | Borrow rewards don't cover the interest |
-| `multi_source` | The same market appears in both sources, which helps cross-check figures |
+| `multi_source` | Merged from DefiLlama and Merkl, so the figures are cross-checked |
+| `reward_mismatch` | The two sources' reward APRs differ by more than 25%; the higher one is shown |
 | `unverified` | Merkl marks the campaign `[UNVERIFIED]` |
 | `stable` | Stablecoin market |
 

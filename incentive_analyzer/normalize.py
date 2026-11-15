@@ -93,7 +93,20 @@ _MERKL_ACTION = {
 }
 
 
-def category_from_merkl(action: str | None, type_: str | None) -> Category:
+def is_collateral_campaign(type_: str | None, name: str | None) -> bool:
+    """Rewards for *posting collateral* (Morpho/Fluid/... collateral campaigns).
+
+    Excludes "borrow from collateral" campaigns, which reward borrowing.
+    """
+    t = (type_ or "").upper()
+    if "COLLATERAL" in t and "BORROW" not in t:
+        return True
+    return bool(re.search(r"\bas collateral\b", (name or "").lower()))
+
+
+def category_from_merkl(action: str | None, type_: str | None, name: str | None = None) -> Category:
+    if is_collateral_campaign(type_, name):
+        return Category.COLLATERAL
     for value in (action, type_):
         if not value:
             continue

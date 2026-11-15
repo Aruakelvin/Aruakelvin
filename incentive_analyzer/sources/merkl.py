@@ -80,7 +80,7 @@ class MerklSource(Source):
             chain=chain,
             protocol=protocol,
             market=r.get("name") or r.get("identifier") or "?",
-            category=category_from_merkl(r.get("action"), r.get("type")),
+            category=category_from_merkl(r.get("action"), r.get("type"), r.get("name")),
             tvl_usd=to_float(r.get("tvl")) or None,  # 0 = volume/buy campaigns with no deposits
             base_apr=to_float(r.get("nativeApr")),  # organic yield, when Merkl knows it
             reward_apr=apr,

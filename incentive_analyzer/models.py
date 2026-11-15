@@ -15,6 +15,7 @@ class Category(str, Enum):
     LENDING = "lending"      # supply assets to a money market
     BORROWING = "borrowing"  # borrow assets (borrow-side rewards)
     STAKING = "staking"      # stake / restake / vault deposit
+    COLLATERAL = "collateral"  # post an asset as collateral (not lending it out)
     HOLDING = "holding"      # simply hold a token / position
     OTHER = "other"
 

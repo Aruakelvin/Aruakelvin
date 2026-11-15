@@ -4,13 +4,12 @@ from __future__ import annotations
 
 import logging
 import math
-import re
-from collections import defaultdict
 from collections.abc import Iterable, Sequence
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 
 from .http import HttpClient
+from .merge import merge_duplicates
 from .models import Category, Opportunity
 from .normalize import canon_chain, canon_protocol
 from .sources import REGISTRY, Source
@@ -37,7 +36,8 @@ class Filters:
     chains: Sequence[str] = ()
     protocols: Sequence[str] = ()
     categories: Sequence[Category] = ()
-    token: str | None = None            # substring match on market / tokens / reward tokens
+    token: str | None = None            # deposited asset: substring of market name / deposit tokens
+    reward_token: str | None = None     # asset the rewards are paid in
     min_tvl: float = 0.0
     min_reward_apr: float = 0.0
     max_apr: float | None = None
@@ -68,15 +68,26 @@ class Filters:
             return False
         if self.token:
             needle = self.token.lower()
-            hay = " ".join([o.market, *o.tokens, *(r.symbol for r in o.reward_tokens)]).lower()
+            if o.category == Category.COLLATERAL:
+                # "Deposit USDe as collateral on USDe/USDC": only the collateral counts.
+                hay = " ".join(o.tokens).lower()
+            else:
+                hay = " ".join([o.market, *o.tokens]).lower()
             if needle not in hay:
+                return False
+        if self.reward_token:
+            needle = self.reward_token.lower()
+            if not any(needle in r.symbol.lower() for r in o.reward_tokens):
                 return False
         return True
 
 
 class Analyzer:
-    def __init__(self, http: HttpClient | None = None, sources: Iterable[str] | None = None) -> None:
+    def __init__(
+        self, http: HttpClient | None = None, sources: Iterable[str] | None = None, merge: bool = True
+    ) -> None:
         self.http = http or HttpClient()
+        self.merge = merge
         names = list(sources) if sources else list(REGISTRY)
         unknown = [n for n in names if n not in REGISTRY]
         if unknown:
@@ -102,7 +113,7 @@ class Analyzer:
                 result.source_counts[name] = len(opps or [])
                 result.opportunities.extend(opps or [])
 
-        enrich(result.opportunities)
+        result.opportunities = enrich(result.opportunities, merge=self.merge)
         return result
 
     def scan(self, filters: Filters | None = None, sort: str = "score", limit: int | None = None) -> ScanResult:
@@ -130,14 +141,18 @@ SORT_KEYS = {
 }
 
 
-def enrich(opps: list[Opportunity]) -> None:
-    """Attach risk flags, cross-source links and scores in place."""
+def enrich(opps: list[Opportunity], merge: bool = True) -> list[Opportunity]:
+    """Resolve symbols, merge cross-source duplicates, then flag and score.
+
+    Returns the (possibly shorter) list; rows are modified in place.
+    """
     resolve_token_symbols(opps)
+    if merge:
+        opps = merge_duplicates(opps)
     for o in opps:
         o.flags = risk_flags(o)
-    link_cross_source(opps)
-    for o in opps:
         o.score = score(o)
+    return opps
 
 
 def risk_flags(o: Opportunity) -> list[str]:
@@ -157,6 +172,10 @@ def risk_flags(o: Opportunity) -> list[str]:
         flags.append("apr_spike")
     if o.category == Category.BORROWING and o.total_apr <= 0:
         flags.append("net_negative")
+    if "+" in o.source:
+        flags.append("multi_source")
+    if o.extra.get("reward_mismatch"):
+        flags.append("reward_mismatch")
     if o.extra.get("unverified"):
         flags.append("unverified")
     if o.stablecoin:
@@ -206,44 +225,6 @@ def resolve_token_symbols(opps: list[Opportunity]) -> None:
                 sym = known.get((o.chain, r.address.lower()))
                 if sym:
                     r.symbol = sym
-
-
-_TOKEN_SPLIT = re.compile(r"[^a-z0-9]+")
-
-
-def _market_key(o: Opportunity) -> tuple[str, str, frozenset[str]] | None:
-    symbols = [t.lower() for t in o.tokens if t and not t.startswith("0x")]
-    if symbols:
-        toks = set(symbols)
-    else:
-        raw = _TOKEN_SPLIT.split(o.market.lower().split("(")[0])
-        toks = {t for t in raw if len(t) >= 2 and not t.isdigit()}
-    toks -= {"lp", "pool", "provide", "liquidity", "on", "the", "supply", "borrow", "lend", "to", "v2", "v3", "v4"}
-    if not toks:
-        return None
-    return (o.chain, o.protocol.split("-")[0], frozenset(toks))
-
-
-def link_cross_source(opps: list[Opportunity]) -> None:
-    """Mark markets that look like the same pool reported by several sources.
-
-    Matching is heuristic (chain + protocol family + token set). Matches are
-    *annotated* (``extra['also_on']``) rather than merged, because the sources
-    measure different things (DefiLlama: realised pool APY; Merkl: campaign APR).
-    """
-    index: dict[tuple, list[Opportunity]] = defaultdict(list)
-    for o in opps:
-        k = _market_key(o)
-        if k:
-            index[k].append(o)
-    for group in index.values():
-        sources = {o.source for o in group}
-        if len(sources) < 2:
-            continue
-        for o in group:
-            o.extra["also_on"] = sorted(sources - {o.source})
-            if "multi_source" not in o.flags:
-                o.flags.append("multi_source")
 
 
 # ---- aggregation -----------------------------------------------------------

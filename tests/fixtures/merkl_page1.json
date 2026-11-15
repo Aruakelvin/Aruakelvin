@@ -1,5 +1,242 @@
 [
- {"id":"m3","chainId":1,"type":"ERC20","identifier":"0xswap","name":"Swap on Ekubo ETH/USDC","status":"LIVE","action":"SWAP","tvl":null,"apr":0,"dailyRewards":2500,"chain":{"id":1,"name":"Ethereum"},"protocol":{"id":"ekubo","name":"Ekubo"},"tokens":[],"rewardsRecord":{"breakdowns":[{"token":{"symbol":"EKUBO"},"value":2500}]}},
- {"id":"m4","chainId":146,"type":"EULER","identifier":"0xb","name":"Borrow USDC.e","status":"LIVE","action":"BORROW","tvl":7000000,"apr":6.0,"dailyRewards":1150,"chain":{"id":146,"name":"Sonic"},"protocol":{"id":"euler","name":"Euler"},"tokens":[{"symbol":"USDC.e"}],"rewardsRecord":{"breakdowns":[{"token":{"symbol":"wS"},"value":1150}]}},
- {"id":"m5","chainId":1,"type":"ERC20","identifier":"0xdead","name":"Dead campaign","status":"LIVE","action":"HOLD","tvl":0,"apr":0,"dailyRewards":0,"chain":{"id":1,"name":"Ethereum"},"protocol":{"id":"x"}}
+ {
+  "id": "m3",
+  "chainId": 1,
+  "type": "ERC20",
+  "identifier": "0xswap",
+  "name": "Swap on Ekubo ETH/USDC",
+  "status": "LIVE",
+  "action": "SWAP",
+  "tvl": null,
+  "apr": 0,
+  "dailyRewards": 2500,
+  "chain": {
+   "id": 1,
+   "name": "Ethereum"
+  },
+  "protocol": {
+   "id": "ekubo",
+   "name": "Ekubo"
+  },
+  "tokens": [],
+  "rewardsRecord": {
+   "breakdowns": [
+    {
+     "token": {
+      "symbol": "EKUBO"
+     },
+     "value": 2500
+    }
+   ]
+  }
+ },
+ {
+  "id": "m4",
+  "chainId": 146,
+  "type": "EULER",
+  "identifier": "0xb",
+  "name": "Borrow USDC.e",
+  "status": "LIVE",
+  "action": "BORROW",
+  "tvl": 7000000,
+  "apr": 6.0,
+  "dailyRewards": 1150,
+  "chain": {
+   "id": 146,
+   "name": "Sonic"
+  },
+  "protocol": {
+   "id": "euler",
+   "name": "Euler"
+  },
+  "tokens": [
+   {
+    "symbol": "USDC.e"
+   }
+  ],
+  "rewardsRecord": {
+   "breakdowns": [
+    {
+     "token": {
+      "symbol": "wS"
+     },
+     "value": 1150
+    }
+   ]
+  }
+ },
+ {
+  "id": "m5",
+  "chainId": 1,
+  "type": "ERC20",
+  "identifier": "0xdead",
+  "name": "Dead campaign",
+  "status": "LIVE",
+  "action": "HOLD",
+  "tvl": 0,
+  "apr": 0,
+  "dailyRewards": 0,
+  "chain": {
+   "id": 1,
+   "name": "Ethereum"
+  },
+  "protocol": {
+   "id": "x"
+  }
+ },
+ {
+  "id": "m6",
+  "chainId": 8453,
+  "type": "ERC20LOGPROCESSOR",
+  "identifier": "0xbeeff",
+  "name": "Supply to Steakhouse High Yield USDC Edition V2 vault on Morpho",
+  "status": "LIVE",
+  "action": "LEND",
+  "tvl": 449070000,
+  "apr": 2.56,
+  "nativeApr": 3.44,
+  "dailyRewards": 30350,
+  "depositUrl": "https://app.morpho.org/base/vault/0xbeeff",
+  "chain": {
+   "id": 8453,
+   "name": "Base"
+  },
+  "protocol": {
+   "id": "morpho"
+  },
+  "tokens": [
+   {
+    "symbol": "sirloinUSDC",
+    "address": "0xbeeff2490FEffa212faC2f6553682C219E6a8845"
+   },
+   {
+    "symbol": "USDC",
+    "address": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"
+   }
+  ],
+  "rewardsRecord": {
+   "breakdowns": [
+    {
+     "token": {
+      "symbol": "MORPHO",
+      "address": "0xBAa5CC21fd487B8Fcc2F632f3F4E8D37262a0842"
+     },
+     "value": 20000
+    },
+    {
+     "token": {
+      "symbol": "USDC",
+      "address": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"
+     },
+     "value": 10350
+    }
+   ]
+  }
+ },
+ {
+  "id": "m7",
+  "chainId": 8453,
+  "type": "AAVE_V4_HUB_NET_LENDING",
+  "identifier": "0xaave",
+  "name": "Lend USDC on Aave V4",
+  "status": "LIVE",
+  "action": "LEND",
+  "tvl": 3640000,
+  "apr": 3.0,
+  "nativeApr": 2.77,
+  "dailyRewards": 299,
+  "chain": {
+   "id": 8453,
+   "name": "Base"
+  },
+  "protocol": {
+   "id": "aave"
+  },
+  "tokens": [
+   {
+    "symbol": "USDC",
+    "address": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"
+   }
+  ],
+  "rewardsRecord": {
+   "breakdowns": [
+    {
+     "token": {
+      "symbol": "USDC",
+      "address": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"
+     },
+     "value": 299
+    }
+   ]
+  }
+ },
+ {
+  "id": "m8",
+  "chainId": 8453,
+  "type": "MORPHOCOLLATERAL",
+  "identifier": "0x54cf",
+  "name": "Deposit USDe as collateral on USDe/USDC 91.5%",
+  "status": "LIVE",
+  "action": "BORROW",
+  "tvl": 379220000,
+  "apr": 5.25,
+  "dailyRewards": 54550,
+  "chain": {
+   "id": 8453,
+   "name": "Base"
+  },
+  "protocol": {
+   "id": "morpho"
+  },
+  "tokens": [
+   {
+    "symbol": "USDe",
+    "address": "0x5d3a"
+   }
+  ],
+  "rewardsRecord": {
+   "breakdowns": [
+    {
+     "token": {
+      "symbol": "USDe"
+     },
+     "value": 54550
+    }
+   ]
+  }
+ },
+ {
+  "id": "m9",
+  "chainId": 1,
+  "type": "COMPOUND_V3_BORROW_FROM_COLLATERAL",
+  "identifier": "0xc3",
+  "name": "Borrow USDC on Compound",
+  "status": "LIVE",
+  "action": "BORROW",
+  "tvl": 9000000,
+  "apr": 1.5,
+  "dailyRewards": 370,
+  "chain": {
+   "id": 1,
+   "name": "Ethereum"
+  },
+  "protocol": {
+   "id": "compound"
+  },
+  "tokens": [
+   {
+    "symbol": "USDC"
+   }
+  ],
+  "rewardsRecord": {
+   "breakdowns": [
+    {
+     "token": {
+      "symbol": "COMP"
+     },
+     "value": 370
+    }
+   ]
+  }
+ }
 ]
