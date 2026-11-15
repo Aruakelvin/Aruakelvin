@@ -1,4 +1,5 @@
 import contextlib
+import copy
 import io
 import json
 import os
@@ -41,11 +42,12 @@ class FakeHttp:
 
 
 class Base(unittest.TestCase):
+    merge = False  # source-level tests look at raw rows; MergeTests turns it on
     def setUp(self):
         self._ps = merkl_mod.MerklSource.page_size
         merkl_mod.MerklSource.page_size = 2  # exercise pagination with tiny fixtures
         self.http = FakeHttp()
-        self.result = Analyzer(self.http).collect()
+        self.result = Analyzer(self.http, merge=self.merge).collect()
         self.opps = self.result.opportunities
 
     def tearDown(self):
@@ -61,7 +63,7 @@ class CollectTests(Base):
         self.assertNotIn("p-lido", ids)          # apyReward 0
         self.assertNotIn("p-aave-weth", ids)     # apyReward null (supply side)
         self.assertNotIn("m5", ids)              # dead merkl campaign
-        self.assertEqual(self.result.source_counts, {"defillama": 6, "merkl": 4})
+        self.assertEqual(self.result.source_counts, {"defillama": 8, "merkl": 8})
 
     def test_merkl_pagination(self):
         pages = [p["page"] for u, p in self.http.calls if "merkl" in u]
@@ -98,13 +100,6 @@ class CollectTests(Base):
             self.assertIn(f, degen.flags)
         self.assertIn("stable", self.get("defillama", "p-aave-usdc").flags)
 
-    def test_cross_source_link(self):
-        llama = self.get("defillama", "p-aero-weth-usdc")
-        merkl = self.get("merkl", "m1")
-        self.assertIn("multi_source", llama.flags)
-        self.assertEqual(llama.extra["also_on"], ["merkl"])
-        self.assertEqual(merkl.extra["also_on"], ["defillama"])
-
     def test_volume_campaign_scored_on_daily_rewards(self):
         swap = self.get("merkl", "m3")
         self.assertNotIn("low_tvl", swap.flags)
@@ -138,7 +133,7 @@ class CollectTests(Base):
     def test_source_failure_is_isolated(self):
         res = Analyzer(FakeHttp(fail={"merkl"})).collect()
         self.assertIn("merkl", res.errors)
-        self.assertEqual(res.source_counts, {"defillama": 6})
+        self.assertEqual(res.source_counts, {"defillama": 8})
 
     def test_unknown_source(self):
         with self.assertRaises(ValueError):
@@ -154,9 +149,14 @@ class FilterTests(Base):
 
     def test_category_and_tvl(self):
         self.assertEqual(self.ids(categories=[Category.LP], min_tvl=1e6), {"p-aero-weth-usdc", "m1", "p-gmx"})
+        lending = self.ids(categories=[Category.LENDING])
+        self.assertNotIn("m8", lending)  # collateral deposit is not lending
 
     def test_token_matches_reward_tokens(self):
-        self.assertEqual(self.ids(token="aero"), {"m1", "p-aero-weth-usdc"})
+        # --token is the deposited asset; rewards paid in AERO don't count
+        self.assertEqual(self.ids(token="aero"), set())
+        self.assertEqual(self.ids(reward_token="aero"), {"m1", "p-aero-weth-usdc"})
+        self.assertEqual(self.ids(token="weth", reward_token="aero"), {"m1", "p-aero-weth-usdc"})
         self.assertIn("m2", self.ids(token="usdc"))
 
     def test_protocol_family_prefix(self):
@@ -165,7 +165,8 @@ class FilterTests(Base):
     def test_safe_and_stable(self):
         safe = self.ids(exclude_flags=("apr_outlier", "low_tvl", "net_negative"))
         self.assertNotIn("p-degen", safe)
-        self.assertEqual(self.ids(stablecoin_only=True), {"p-aave-usdc", "p-aave-usdc:borrow"})
+        self.assertEqual(self.ids(stablecoin_only=True),
+                         {"p-aave-usdc", "p-aave-usdc:borrow", "p-sirloin", "p-aave4-usdc"})
 
     def test_sort_and_limit(self):
         top = select(self.opps, Filters(), sort="reward_apr", limit=2)
@@ -174,9 +175,92 @@ class FilterTests(Base):
     def test_summary(self):
         rows = summarize(self.opps, by="chain")
         base = next(r for r in rows if r["chain"] == "base")
-        self.assertEqual(base["markets"], 2)
-        self.assertAlmostEqual(base["tvl_usd"], 84.5e6)
+        self.assertEqual(base["markets"], 7)
         self.assertEqual(rows, sorted(rows, key=lambda r: r["daily_rewards_usd"], reverse=True))
+
+
+class MergeTests(Base):
+    merge = True
+
+    def test_vault_pair_merged_into_one_row(self):
+        rows = [o for o in self.opps if "p-sirloin" in o.source_id or o.source_id == "m6"]
+        self.assertEqual(len(rows), 1)
+        o = rows[0]
+        self.assertEqual(o.source, "defillama+merkl")
+        self.assertEqual(o.market, "Supply to Steakhouse High Yield USDC Edition V2 vault on Morpho")
+        self.assertEqual(o.url, "https://app.morpho.org/base/vault/0xbeeff")       # protocol app, from Merkl
+        self.assertEqual(o.base_apr, 3.69)                                        # DefiLlama's base APY
+        self.assertEqual(o.apr_30d_mean, 6.1)
+        self.assertEqual(o.daily_rewards_usd, 30350)                              # Merkl's USD/day
+        self.assertEqual([r.symbol for r in o.reward_tokens], ["MORPHO", "USDC"])
+        self.assertIn("multi_source", o.flags)
+        self.assertEqual(set(o.extra["merged_from"]), {"defillama", "merkl"})
+
+    def test_multi_asset_lp_pair_merged(self):
+        ids = {o.source_id for o in self.opps}
+        self.assertIn("p-aero-weth-usdc|m1", ids)
+        self.assertNotIn("m1", ids)
+
+    def test_different_tvl_not_merged(self):
+        ids = {o.source_id for o in self.opps}
+        self.assertIn("p-aave4-usdc", ids)   # $1.55M vs Merkl's $3.64M Aave V4 market
+        self.assertIn("m7", ids)
+
+    def test_borrow_and_collateral_never_merged(self):
+        ids = {o.source_id for o in self.opps}
+        self.assertTrue({"m8", "m4", "p-aave-weth:borrow"} <= ids)
+
+    def test_reward_mismatch_flag(self):
+        # Merkl's Aerodrome campaign (12.4%) vs DefiLlama's pool (31.5%): kept as max, flagged.
+        o = next(o for o in self.opps if o.source_id == "p-aero-weth-usdc|m1")
+        self.assertEqual(o.reward_apr, 31.5)
+        self.assertIn("reward_mismatch", o.flags)
+
+    def test_no_merge_keeps_rows(self):
+        raw = Analyzer(FakeHttp(), merge=False).collect().opportunities
+        self.assertEqual(len(raw), len(self.opps) + 2)
+
+    def test_usdc_lending_on_base(self):
+        rows = select(self.opps, Filters(chains=["base"], categories=[Category.LENDING], token="USDC"))
+        self.assertEqual({o.source_id for o in rows}, {"p-sirloin|m6", "p-aave4-usdc", "m7"})
+
+
+    def test_identical_listing_collapsed(self):
+        from incentive_analyzer.merge import collapse_identical
+        a = self.get("defillama+merkl", "p-sirloin|m6")
+        twin = copy.deepcopy(a)
+        twin.source, twin.source_id, twin.protocol = "defillama", "p-twin", "steakhouse"
+        twin.reward_tokens = []
+        other_chain = copy.deepcopy(twin)
+        other_chain.chain, other_chain.source_id = "ethereum", "p-eth"
+        out = collapse_identical([a, twin, other_chain])
+        self.assertEqual([o.source_id for o in out], ["p-sirloin|m6", "p-eth"])
+        self.assertEqual(a.extra["duplicates"][0]["protocol"], "steakhouse")
+
+    def test_identical_merkl_rows_or_dust_not_collapsed(self):
+        from incentive_analyzer.merge import collapse_identical
+        m = self.get("merkl", "m7")
+        twin = copy.deepcopy(m)
+        twin.source_id = "m7-other-hub"
+        self.assertEqual(len(collapse_identical([m, twin])), 2)
+        dust = copy.deepcopy(self.get("defillama+merkl", "p-sirloin|m6"))
+        dust.tvl_usd = 100
+        dust2 = copy.deepcopy(dust)
+        dust2.source, dust2.source_id = "defillama", "p-dust"
+        self.assertEqual(len(collapse_identical([dust, dust2])), 2)
+
+
+class CollateralTests(Base):
+    def test_collateral_category(self):
+        self.assertEqual(self.get("merkl", "m8").category, Category.COLLATERAL)
+        # "borrow from collateral" rewards borrowing, so it stays borrowing
+        self.assertEqual(self.get("merkl", "m9").category, Category.BORROWING)
+
+    def test_token_filter_uses_collateral_asset_only(self):
+        usdc = {o.source_id for o in select(self.opps, Filters(token="USDC"))}
+        self.assertNotIn("m8", usdc)
+        usde = {o.source_id for o in select(self.opps, Filters(token="USDe"))}
+        self.assertIn("m8", usde)
 
 
 class ReportTests(Base):

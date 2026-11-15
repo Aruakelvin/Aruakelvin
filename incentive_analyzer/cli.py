@@ -25,7 +25,8 @@ def _common(p: argparse.ArgumentParser) -> None:
     g.add_argument("-p", "--protocol", type=_csv, default=[], help="comma list, e.g. aave-v3,uniswap-v3,aerodrome")
     g.add_argument("-t", "--type", dest="categories", type=_csv, default=[],
                    help=f"comma list of: {', '.join(c.value for c in Category)}")
-    g.add_argument("--token", help="match a token symbol in market / underlying / reward tokens (e.g. USDC)")
+    g.add_argument("--token", help="asset you deposit, matched in the market name / deposit tokens (e.g. USDC)")
+    g.add_argument("--reward-token", help="asset the rewards are paid in (e.g. MORPHO, AERO, OP)")
     g.add_argument("--min-tvl", type=float, default=0.0, help="minimum TVL in USD (default 0)")
     g.add_argument("--min-reward-apr", type=float, default=0.0, help="minimum incentive APR %% (default 0)")
     g.add_argument("--max-apr", type=float, help="drop markets above this total APR %%")
@@ -34,6 +35,8 @@ def _common(p: argparse.ArgumentParser) -> None:
     g.add_argument("--safe", action="store_true", help="exclude apr_outlier, low_tvl and net_negative markets")
     s = p.add_argument_group("data")
     s.add_argument("-s", "--source", type=_csv, default=[], help=f"sources to use (default all: {', '.join(REGISTRY)})")
+    s.add_argument("--no-merge", action="store_true",
+                   help="keep DefiLlama and Merkl rows for the same market separate")
     s.add_argument("--cache-ttl", type=int, default=600, help="seconds to reuse cached API responses (0 disables)")
     s.add_argument("--cache-dir", type=Path, default=DEFAULT_CACHE_DIR)
     s.add_argument("--timeout", type=float, default=45.0)
@@ -70,7 +73,7 @@ def _filters(args: argparse.Namespace) -> Filters:
     except ValueError as exc:
         raise SystemExit(f"error: {exc}; valid types: {', '.join(c.value for c in Category)}") from None
     return Filters(
-        chains=args.chain, protocols=args.protocol, categories=cats, token=args.token,
+        chains=args.chain, protocols=args.protocol, categories=cats, token=args.token, reward_token=args.reward_token,
         min_tvl=args.min_tvl, min_reward_apr=args.min_reward_apr, max_apr=args.max_apr,
         min_daily_rewards=args.min_daily_rewards, stablecoin_only=args.stable,
         exclude_flags=("apr_outlier", "low_tvl", "net_negative") if args.safe else (),
@@ -88,7 +91,7 @@ def main(argv: list[str] | None = None) -> int:
 
     http = HttpClient(cache_dir=args.cache_dir, cache_ttl=args.cache_ttl, timeout=args.timeout)
     try:
-        analyzer = Analyzer(http, args.source or None)
+        analyzer = Analyzer(http, args.source or None, merge=not args.no_merge)
     except ValueError as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 2

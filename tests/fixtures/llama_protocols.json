@@ -1,6 +1,26 @@
 [
- {"slug":"aave-v3","category":"Lending"},
- {"slug":"aerodrome-slipstream","category":"Dexs"},
- {"slug":"gmx-v2-perps","category":"Derivatives"},
- {"slug":"lido","category":"Liquid Staking"}
+ {
+  "slug": "aave-v3",
+  "category": "Lending"
+ },
+ {
+  "slug": "aerodrome-slipstream",
+  "category": "Dexs"
+ },
+ {
+  "slug": "gmx-v2-perps",
+  "category": "Derivatives"
+ },
+ {
+  "slug": "lido",
+  "category": "Liquid Staking"
+ },
+ {
+  "slug": "morpho-blue",
+  "category": "Lending"
+ },
+ {
+  "slug": "aave-v4",
+  "category": "Lending"
+ }
 ]

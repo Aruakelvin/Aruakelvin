@@ -1,8 +1,139 @@
-{"status":"success","data":[
- {"chain":"Ethereum","project":"aave-v3","symbol":"USDC","tvlUsd":850000000,"apyBase":4.1,"apyReward":1.2,"apy":5.3,"rewardTokens":["0x7fc66500c84a76ad7e9c93437bfc5ac33e2ddae9"],"pool":"p-aave-usdc","stablecoin":true,"ilRisk":"no","exposure":"single","poolMeta":null,"apyMean30d":5.0,"underlyingTokens":["0xa0b8"],"outlier":false},
- {"chain":"Base","project":"aerodrome-slipstream","symbol":"WETH-USDC","tvlUsd":42000000,"apyBase":8.0,"apyReward":31.5,"rewardTokens":["0x940181a94a35a4569e4529a3cdfb74e38fd98631"],"pool":"p-aero-weth-usdc","stablecoin":false,"ilRisk":"yes","exposure":"multi","poolMeta":"0.05%","apyMean30d":35.0,"outlier":false},
- {"chain":"Arbitrum","project":"gmx-v2-perps","symbol":"ETH-USDC","tvlUsd":120000000,"apyBase":14.0,"apyReward":2.5,"rewardTokens":["arb"],"pool":"p-gmx","stablecoin":false,"ilRisk":"no","exposure":"multi","apyMean30d":16.0},
- {"chain":"BSC","project":"degen-farm","symbol":"MOON-BNB","tvlUsd":15000,"apyBase":0,"apyReward":4800,"rewardTokens":["0xdeadbeefdeadbeefdeadbeef"],"pool":"p-degen","stablecoin":false,"ilRisk":"yes","exposure":"multi","apyMean30d":900,"outlier":true},
- {"chain":"Ethereum","project":"lido","symbol":"STETH","tvlUsd":25000000000,"apyBase":2.9,"apyReward":0,"rewardTokens":null,"pool":"p-lido","stablecoin":false,"ilRisk":"no","exposure":"single"},
- {"chain":"Ethereum","project":"aave-v3","symbol":"WETH","tvlUsd":3000000000,"apyBase":1.9,"apyReward":null,"pool":"p-aave-weth","stablecoin":false,"ilRisk":"no","exposure":"single"}
-]}
+{
+ "status": "success",
+ "data": [
+  {
+   "chain": "Ethereum",
+   "project": "aave-v3",
+   "symbol": "USDC",
+   "tvlUsd": 850000000,
+   "apyBase": 4.1,
+   "apyReward": 1.2,
+   "apy": 5.3,
+   "rewardTokens": [
+    "0x7fc66500c84a76ad7e9c93437bfc5ac33e2ddae9"
+   ],
+   "pool": "p-aave-usdc",
+   "stablecoin": true,
+   "ilRisk": "no",
+   "exposure": "single",
+   "poolMeta": null,
+   "apyMean30d": 5.0,
+   "underlyingTokens": [
+    "0xa0b8"
+   ],
+   "outlier": false
+  },
+  {
+   "chain": "Base",
+   "project": "aerodrome-slipstream",
+   "symbol": "WETH-USDC",
+   "tvlUsd": 42000000,
+   "apyBase": 8.0,
+   "apyReward": 31.5,
+   "rewardTokens": [
+    "0x940181a94a35a4569e4529a3cdfb74e38fd98631"
+   ],
+   "pool": "p-aero-weth-usdc",
+   "stablecoin": false,
+   "ilRisk": "yes",
+   "exposure": "multi",
+   "poolMeta": "0.05%",
+   "apyMean30d": 35.0,
+   "outlier": false
+  },
+  {
+   "chain": "Arbitrum",
+   "project": "gmx-v2-perps",
+   "symbol": "ETH-USDC",
+   "tvlUsd": 120000000,
+   "apyBase": 14.0,
+   "apyReward": 2.5,
+   "rewardTokens": [
+    "arb"
+   ],
+   "pool": "p-gmx",
+   "stablecoin": false,
+   "ilRisk": "no",
+   "exposure": "multi",
+   "apyMean30d": 16.0
+  },
+  {
+   "chain": "BSC",
+   "project": "degen-farm",
+   "symbol": "MOON-BNB",
+   "tvlUsd": 15000,
+   "apyBase": 0,
+   "apyReward": 4800,
+   "rewardTokens": [
+    "0xdeadbeefdeadbeefdeadbeef"
+   ],
+   "pool": "p-degen",
+   "stablecoin": false,
+   "ilRisk": "yes",
+   "exposure": "multi",
+   "apyMean30d": 900,
+   "outlier": true
+  },
+  {
+   "chain": "Ethereum",
+   "project": "lido",
+   "symbol": "STETH",
+   "tvlUsd": 25000000000,
+   "apyBase": 2.9,
+   "apyReward": 0,
+   "rewardTokens": null,
+   "pool": "p-lido",
+   "stablecoin": false,
+   "ilRisk": "no",
+   "exposure": "single"
+  },
+  {
+   "chain": "Ethereum",
+   "project": "aave-v3",
+   "symbol": "WETH",
+   "tvlUsd": 3000000000,
+   "apyBase": 1.9,
+   "apyReward": null,
+   "pool": "p-aave-weth",
+   "stablecoin": false,
+   "ilRisk": "no",
+   "exposure": "single"
+  },
+  {
+   "chain": "Base",
+   "project": "morpho-blue",
+   "symbol": "SIRLOINUSDC",
+   "tvlUsd": 450191090,
+   "apyBase": 3.69,
+   "apyReward": 2.56,
+   "rewardTokens": [
+    "0xBAa5CC21fd487B8Fcc2F632f3F4E8D37262a0842"
+   ],
+   "pool": "p-sirloin",
+   "stablecoin": true,
+   "ilRisk": "no",
+   "exposure": "single",
+   "apyMean30d": 6.1,
+   "underlyingTokens": [
+    "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"
+   ]
+  },
+  {
+   "chain": "Base",
+   "project": "aave-v4",
+   "symbol": "USDC",
+   "poolMeta": "Coinbase Stocks",
+   "tvlUsd": 1550000,
+   "apyBase": 2.73,
+   "apyReward": 3.04,
+   "rewardTokens": [],
+   "pool": "p-aave4-usdc",
+   "stablecoin": true,
+   "ilRisk": "no",
+   "exposure": "single",
+   "underlyingTokens": [
+    "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"
+   ]
+  }
+ ]
+}
