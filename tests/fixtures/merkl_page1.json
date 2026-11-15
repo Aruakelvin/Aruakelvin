@@ -1,0 +1,5 @@
+[
+ {"id":"m3","chainId":1,"type":"ERC20","identifier":"0xswap","name":"Swap on Ekubo ETH/USDC","status":"LIVE","action":"SWAP","tvl":null,"apr":0,"dailyRewards":2500,"chain":{"id":1,"name":"Ethereum"},"protocol":{"id":"ekubo","name":"Ekubo"},"tokens":[],"rewardsRecord":{"breakdowns":[{"token":{"symbol":"EKUBO"},"value":2500}]}},
+ {"id":"m4","chainId":146,"type":"EULER","identifier":"0xb","name":"Borrow USDC.e","status":"LIVE","action":"BORROW","tvl":7000000,"apr":6.0,"dailyRewards":1150,"chain":{"id":146,"name":"Sonic"},"protocol":{"id":"euler","name":"Euler"},"tokens":[{"symbol":"USDC.e"}],"rewardsRecord":{"breakdowns":[{"token":{"symbol":"wS"},"value":1150}]}},
+ {"id":"m5","chainId":1,"type":"ERC20","identifier":"0xdead","name":"Dead campaign","status":"LIVE","action":"HOLD","tvl":0,"apr":0,"dailyRewards":0,"chain":{"id":1,"name":"Ethereum"},"protocol":{"id":"x"}}
+]

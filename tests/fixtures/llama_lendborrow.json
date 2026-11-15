@@ -1,0 +1,5 @@
+[
+ {"pool":"p-aave-weth","apyBaseBorrow":2.4,"apyRewardBorrow":3.1,"totalSupplyUsd":3000000000,"totalBorrowUsd":1800000000,"ltv":0.8,"rewardTokens":["0x7fc66500c84a76ad7e9c93437bfc5ac33e2ddae9"]},
+ {"pool":"p-aave-usdc","apyBaseBorrow":5.5,"apyRewardBorrow":0.4,"totalSupplyUsd":850000000,"totalBorrowUsd":600000000,"ltv":0.77,"rewardTokens":[]},
+ {"pool":"p-lido","apyBaseBorrow":null,"apyRewardBorrow":0}
+]
