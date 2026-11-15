@@ -1,6 +1,7 @@
 import contextlib
 import io
 import json
+import os
 import tempfile
 import unittest
 from pathlib import Path
@@ -69,7 +70,7 @@ class CollectTests(Base):
     def test_categories(self):
         self.assertEqual(self.get("defillama", "p-aave-usdc").category, Category.LENDING)
         self.assertEqual(self.get("defillama", "p-aero-weth-usdc").category, Category.LP)
-        self.assertEqual(self.get("defillama", "p-gmx").category, Category.TRADING)
+        self.assertEqual(self.get("defillama", "p-gmx").category, Category.LP)  # perp LP vault
         self.assertEqual(self.get("defillama", "p-degen").category, Category.LP)  # heuristic fallback
         self.assertEqual(self.get("defillama", "p-aave-weth:borrow").category, Category.BORROWING)
         self.assertEqual(self.get("merkl", "m1").category, Category.LP)
@@ -108,7 +109,21 @@ class CollectTests(Base):
         swap = self.get("merkl", "m3")
         self.assertNotIn("low_tvl", swap.flags)
         self.assertAlmostEqual(swap.score, 2 * 3.39794, places=3)
-        self.assertNotIn("reward_dependent", self.get("merkl", "m2").flags)  # base yield unknown
+        self.assertNotIn("reward_dependent", self.get("merkl", "m4").flags)  # base yield unknown
+
+    def test_merkl_native_apr_and_protocol_fallback(self):
+        m1, m2 = self.get("merkl", "m1"), self.get("merkl", "m2")
+        self.assertEqual(m1.base_apr, 7.5)
+        self.assertAlmostEqual(m1.total_apr, 19.9)
+        self.assertEqual(m2.protocol, "morpho")  # from tags when protocol is null
+        self.assertIn("unverified", m2.flags)
+
+    def test_reward_symbols_resolved_across_sources(self):
+        aero = self.get("defillama", "p-aero-weth-usdc")
+        self.assertEqual(aero.reward_tokens[0].symbol, "AERO")
+        # same address on another chain must not be relabelled
+        self.assertTrue(self.get("defillama", "p-aave-usdc").reward_tokens[0].symbol.startswith("0x"))
+        self.assertNotIn("token_addresses", self.get("merkl", "m1").to_dict())
 
     def test_daily_rewards(self):
         self.assertEqual(self.get("merkl", "m1").est_daily_rewards_usd, 14400)
@@ -138,10 +153,10 @@ class FilterTests(Base):
         self.assertEqual(self.ids(chains=["BNB Chain"]), {"p-degen"})
 
     def test_category_and_tvl(self):
-        self.assertEqual(self.ids(categories=[Category.LP], min_tvl=1e6), {"p-aero-weth-usdc", "m1"})
+        self.assertEqual(self.ids(categories=[Category.LP], min_tvl=1e6), {"p-aero-weth-usdc", "m1", "p-gmx"})
 
     def test_token_matches_reward_tokens(self):
-        self.assertEqual(self.ids(token="aero"), {"m1"})
+        self.assertEqual(self.ids(token="aero"), {"m1", "p-aero-weth-usdc"})
         self.assertIn("m2", self.ids(token="usdc"))
 
     def test_protocol_family_prefix(self):
@@ -183,6 +198,19 @@ class ReportTests(Base):
     def test_usd(self):
         self.assertEqual(report.usd(1_234_567), "$1.23M")
         self.assertEqual(report.usd(None), "-")
+
+
+@unittest.skipUnless(os.environ.get("INCENTIVES_LIVE"), "set INCENTIVES_LIVE=1 to hit the real APIs")
+class LiveSmokeTests(unittest.TestCase):
+    def test_live_scan(self):
+        from incentive_analyzer.http import HttpClient
+        res = Analyzer(HttpClient(cache_ttl=0)).collect()
+        self.assertEqual(res.errors, {})
+        self.assertGreater(res.source_counts.get("defillama", 0), 200)
+        self.assertGreater(res.source_counts.get("merkl", 0), 50)
+        cats = {o.category for o in res.opportunities}
+        self.assertTrue({Category.LP, Category.LENDING, Category.BORROWING} <= cats)
+        self.assertGreater(len({o.chain for o in res.opportunities}), 20)
 
 
 class CliTests(unittest.TestCase):

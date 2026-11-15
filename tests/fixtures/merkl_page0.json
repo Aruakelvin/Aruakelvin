@@ -1,4 +1,88 @@
 [
- {"id":"m1","chainId":8453,"type":"UNISWAP_V4","identifier":"0xpool1","name":"Provide liquidity to WETH-USDC 0.05%","status":"LIVE","action":"POOL","tvl":42500000,"apr":12.4,"dailyRewards":14400,"depositUrl":"https://app.uniswap.org/pool","chain":{"id":8453,"name":"Base"},"protocol":{"id":"aerodrome","name":"Aerodrome"},"tokens":[{"symbol":"WETH"},{"symbol":"USDC"}],"rewardsRecord":{"breakdowns":[{"token":{"symbol":"AERO","address":"0x9401"},"value":10000},{"token":{"symbol":"OP","address":"0x4200"},"value":4400}]}},
- {"id":"m2","chainId":42161,"type":"MORPHO","identifier":"0xvault","name":"Supply USDC to Steakhouse vault","status":"LIVE","action":"LEND","tvl":95000000,"apr":3.8,"dailyRewards":9900,"chain":{"id":42161,"name":"Arbitrum"},"protocol":{"id":"morpho","name":"Morpho"},"tokens":[{"symbol":"USDC"}],"rewardsRecord":{"breakdowns":[{"token":{"symbol":"MORPHO"},"value":9900}]}}
+ {
+  "id": "m1",
+  "chainId": 8453,
+  "type": "UNISWAP_V4",
+  "identifier": "0xpool1",
+  "name": "Provide liquidity to WETH-USDC 0.05%",
+  "status": "LIVE",
+  "action": "POOL",
+  "tvl": 42500000,
+  "apr": 12.4,
+  "dailyRewards": 14400,
+  "depositUrl": "https://app.uniswap.org/pool",
+  "chain": {
+   "id": 8453,
+   "name": "Base"
+  },
+  "protocol": {
+   "id": "aerodrome",
+   "name": "Aerodrome"
+  },
+  "tokens": [
+   {
+    "symbol": "WETH"
+   },
+   {
+    "symbol": "USDC"
+   }
+  ],
+  "rewardsRecord": {
+   "breakdowns": [
+    {
+     "token": {
+      "symbol": "AERO",
+      "address": "0x940181a94A35A4569E4529A3CDfB74e38FD98631"
+     },
+     "value": 10000
+    },
+    {
+     "token": {
+      "symbol": "OP",
+      "address": "0x4200"
+     },
+     "value": 4400
+    }
+   ]
+  },
+  "nativeApr": 7.5,
+  "tags": [
+   "aerodrome"
+  ]
+ },
+ {
+  "id": "m2",
+  "chainId": 42161,
+  "type": "MORPHO",
+  "identifier": "0xvault",
+  "name": "[UNVERIFIED] Supply USDC to Steakhouse vault",
+  "status": "LIVE",
+  "action": "LEND",
+  "tvl": 95000000,
+  "apr": 3.8,
+  "dailyRewards": 9900,
+  "chain": {
+   "id": 42161,
+   "name": "Arbitrum"
+  },
+  "protocol": null,
+  "tokens": [
+   {
+    "symbol": "USDC"
+   }
+  ],
+  "rewardsRecord": {
+   "breakdowns": [
+    {
+     "token": {
+      "symbol": "MORPHO"
+     },
+     "value": 9900
+    }
+   ]
+  },
+  "tags": [
+   "morpho"
+  ]
+ }
 ]

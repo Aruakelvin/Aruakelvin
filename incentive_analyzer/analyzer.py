@@ -22,7 +22,7 @@ LOW_TVL_USD = 100_000
 APR_OUTLIER = 500.0        # % total APR beyond which numbers are rarely real/sustainable
 REWARD_DEPENDENT = 0.90    # >90% of yield is incentives
 SPIKE_RATIO = 2.0          # current APR > 2x 30d mean
-SCORE_APR_CAP = 200.0      # cap APR's contribution to the score
+SCORE_APR_CAP = 150.0      # cap APR's contribution to the score
 
 
 @dataclass
@@ -132,6 +132,7 @@ SORT_KEYS = {
 
 def enrich(opps: list[Opportunity]) -> None:
     """Attach risk flags, cross-source links and scores in place."""
+    resolve_token_symbols(opps)
     for o in opps:
         o.flags = risk_flags(o)
     link_cross_source(opps)
@@ -156,6 +157,8 @@ def risk_flags(o: Opportunity) -> list[str]:
         flags.append("apr_spike")
     if o.category == Category.BORROWING and o.total_apr <= 0:
         flags.append("net_negative")
+    if o.extra.get("unverified"):
+        flags.append("unverified")
     if o.stablecoin:
         flags.append("stable")
     return flags
@@ -165,7 +168,7 @@ def score(o: Opportunity) -> float:
     """Risk-adjusted attractiveness, roughly 'APR you can trust'.
 
     * APR contribution is capped so absurd numbers do not dominate.
-    * Depth: $10k TVL -> 0.25x weight, $100M+ -> 1.0x (log scale).
+    * Depth: $1k TVL -> 0.05x weight, $1M -> 0.62x, $100M+ -> 1.0x (log scale).
     * Stability: penalize when current APR is far from its 30d mean.
     * Flags apply multiplicative haircuts.
     * Campaigns with no APR (pure volume/trading rewards) score on log10 of
@@ -175,17 +178,34 @@ def score(o: Opportunity) -> float:
         return round(2.0 * math.log10(max(o.est_daily_rewards_usd, 1.0)), 4)
     apr = max(0.0, min(o.total_apr, SCORE_APR_CAP))
     tvl = max(o.tvl_usd or 0.0, 1.0)
-    depth = min(1.0, max(0.0, (math.log10(tvl) - 4.0) / 4.0))
-    s = apr * (0.25 + 0.75 * depth)
+    depth = min(1.0, max(0.0, (math.log10(tvl) - 3.0) / 5.0))
+    s = apr * (0.05 + 0.95 * depth)
 
     if o.apr_30d_mean and o.apr_30d_mean > 0 and o.total_apr > 0:
         ratio = min(o.total_apr, o.apr_30d_mean) / max(o.total_apr, o.apr_30d_mean)
         s *= 0.5 + 0.5 * ratio
 
-    haircut = {"apr_outlier": 0.3, "low_tvl": 0.6, "il_risk": 0.85, "apr_spike": 0.8, "net_negative": 0.0}
+    haircut = {"apr_outlier": 0.3, "low_tvl": 0.5, "il_risk": 0.85, "apr_spike": 0.8,
+               "unverified": 0.5, "net_negative": 0.0}
     for f in o.flags:
         s *= haircut.get(f, 1.0)
     return round(s, 4)
+
+
+def resolve_token_symbols(opps: list[Opportunity]) -> None:
+    """Label address-only reward tokens (DefiLlama) with symbols other sources know (Merkl)."""
+    known: dict[tuple[str, str], str] = {}
+    for o in opps:
+        for addr, sym in o.token_addresses.items():
+            known[(o.chain, addr)] = sym
+    if not known:
+        return
+    for o in opps:
+        for r in o.reward_tokens:
+            if r.address and r.symbol.startswith("0x"):
+                sym = known.get((o.chain, r.address.lower()))
+                if sym:
+                    r.symbol = sym
 
 
 _TOKEN_SPLIT = re.compile(r"[^a-z0-9]+")

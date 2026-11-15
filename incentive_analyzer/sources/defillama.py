@@ -21,6 +21,7 @@ log = logging.getLogger(__name__)
 POOLS_URL = "https://yields.llama.fi/pools"
 LEND_BORROW_URL = "https://yields.llama.fi/lendBorrow"
 PROTOCOLS_URL = "https://api.llama.fi/protocols"
+MIN_REWARD_APR = 0.01  # ignore dust emissions that round to 0.00%
 POOL_PAGE = "https://defillama.com/yields/pool/{pool}"
 
 
@@ -52,7 +53,7 @@ class DefiLlamaSource(Source):
             if pool_id:
                 by_pool[pool_id] = p
             reward_apr = to_float(p.get("apyReward"))
-            if not reward_apr or reward_apr <= 0:
+            if not reward_apr or reward_apr < MIN_REWARD_APR:
                 continue  # we only care about incentivized markets
             yield self._to_opportunity(p, categories)
 
@@ -64,7 +65,7 @@ class DefiLlamaSource(Source):
             return
         for row in borrow_rows or []:
             reward = to_float(row.get("apyRewardBorrow"))
-            if not reward or reward <= 0:
+            if not reward or reward < MIN_REWARD_APR:
                 continue
             base_pool = by_pool.get(row.get("pool"), {})
             symbol = base_pool.get("symbol") or row.get("symbol") or "?"
@@ -120,6 +121,6 @@ class DefiLlamaSource(Source):
 
 def _short(addr: str) -> str:
     """DefiLlama gives reward tokens as addresses; shorten for display."""
-    if isinstance(addr, str) and addr.startswith("0x") and len(addr) > 12:
+    if isinstance(addr, str) and len(addr) > 20:  # EVM, Solana, Tron, Move addresses
         return f"{addr[:6]}…{addr[-4:]}"
     return str(addr)

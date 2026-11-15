@@ -49,6 +49,9 @@ class Opportunity:
     il_risk: bool | None = None
     url: str | None = None
     tokens: list[str] = field(default_factory=list)
+    # lowercase address -> symbol, for tokens this source knows; used to label
+    # address-only reward tokens reported by other sources.
+    token_addresses: dict[str, str] = field(default_factory=dict)
     extra: dict[str, Any] = field(default_factory=dict)
 
     # Populated by the analyzer.
@@ -78,6 +81,7 @@ class Opportunity:
 
     def to_dict(self) -> dict[str, Any]:
         d = asdict(self)
+        d.pop("token_addresses", None)
         d["category"] = self.category.value
         d["total_apr"] = self.total_apr
         d["reward_share"] = self.reward_share

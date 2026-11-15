@@ -9,9 +9,13 @@ It uses only the Python standard library (3.10+), and none of the APIs it calls 
 | Source | What it covers | Endpoint |
 |---|---|---|
 | `defillama` | ~15k+ yield pools across 400+ protocols and 100+ chains. Supply-side `apyReward`, plus borrow-side `apyRewardBorrow` from lending markets. Protocol categories come from `api.llama.fi/protocols`. | `yields.llama.fi/pools`, `/lendBorrow` |
-| `merkl` | All live Merkl campaigns (used by Uniswap, Aerodrome, Morpho, Euler, Pendle, Curve, Balancer, Ekubo and others on 40+ chains): LP, lend, borrow, hold and swap/trading rewards, with USD/day per reward token. | `api.merkl.xyz/v4/opportunities` |
+| `merkl` | All live Merkl campaigns (used by Uniswap, Aerodrome, Morpho, Euler, Pendle, Curve, Balancer, Ekubo and others on 40+ chains): LP, lend, borrow, hold, stake and swap/trading rewards, with USD/day per reward token and the market's native (organic) APR. | `api.merkl.xyz/v4/opportunities` |
 
 If one source fails, the scan continues with the others and prints a warning.
+
+In a live run on 2026-11-15, a full scan took about 3 seconds and returned **2,057 incentivized markets** (DefiLlama 1,477 + Merkl 580) on more than 20 chains, worth about $4.6M/day in rewards.
+
+DefiLlama reports reward tokens as contract addresses. Where Merkl knows the same token on the same chain, the address is replaced with its symbol.
 
 To add a source (for example a points program, a perp DEX's trading-rewards API, or a chain foundation's incentive list), subclass `incentive_analyzer.sources.base.Source`, yield `Opportunity` objects from `fetch()`, and register the class in `sources/__init__.py`.
 
@@ -52,6 +56,8 @@ incentives scan -f json | jq '.opportunities[0]'
 ```
 
 Types (`-t`): `lp`, `trading`, `lending`, `borrowing`, `staking`, `holding`, `other`.
+
+`trading` means rewards for swapping or buying (Merkl `SWAP` campaigns). Deposits into perp or DEX vaults (GLP/GLV/HLP style) count as `lp`, because you earn by supplying liquidity, not by trading.
 Sort keys: `score`, `reward_apr`, `total_apr`, `tvl`, `daily_rewards`.
 
 API responses are cached in `~/.cache/incentive-analyzer` for 10 minutes. Change this with `--cache-ttl 0`, `--cache-dir`, or the `INCENTIVES_CACHE_DIR` environment variable.
@@ -75,9 +81,10 @@ API responses are cached in `~/.cache/incentive-analyzer` for 10 minutes. Change
 | `apr_spike` | Current APR is over 2× its 30-day mean |
 | `net_negative` | Borrow rewards don't cover the interest |
 | `multi_source` | The same market appears in both sources, which helps cross-check figures |
+| `unverified` | Merkl marks the campaign `[UNVERIFIED]` |
 | `stable` | Stablecoin market |
 
-**Score.** The score is meant to read as "APR you can trust". Its APR input is capped at 200% and weighted by market depth on a log scale ($10k TVL → 0.25×, $100M+ → 1×). It is also discounted by how far current APR is from its 30-day mean. Then each flag applies a multiplier: outlier 0.3, low TVL 0.6, IL 0.85, spike 0.8, net-negative 0. Volume campaigns with no APR score 2·log10(USD per day).
+**Score.** The score is meant to read as "APR you can trust". Its APR input is capped at 150% and weighted by market depth on a log scale ($1k TVL → 0.05×, $1M → 0.62×, $100M+ → 1×). It is also discounted by how far current APR is from its 30-day mean. Then each flag applies a multiplier: outlier 0.3, low TVL 0.5, unverified 0.5, IL 0.85, spike 0.8, net-negative 0. Volume campaigns with no APR score 2·log10(USD per day).
 
 ## Development
 
@@ -85,7 +92,11 @@ API responses are cached in `~/.cache/incentive-analyzer` for 10 minutes. Change
 python -m unittest discover -s tests -v
 ```
 
-The tests run offline against fixtures shaped like the real API responses.
+The tests run offline against fixtures shaped like the real API responses. To also run a smoke test against the live APIs:
+
+```bash
+INCENTIVES_LIVE=1 python -m unittest tests.test_analyzer.LiveSmokeTests -v
+```
 
 ## Disclaimer
 

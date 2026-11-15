@@ -54,15 +54,21 @@ def canon_protocol(name: str | None) -> str:
 # DefiLlama protocol categories -> our categories.
 _LLAMA_CATEGORY = {
     "dexs": Category.LP, "dexes": Category.LP, "dex": Category.LP,
-    "derivatives": Category.TRADING, "options": Category.TRADING, "perps": Category.TRADING,
-    "options vault": Category.STAKING, "prediction market": Category.TRADING,
+    # DefiLlama pools are deposits; on trading venues that means LP-ing (GLP/GLV/HLP style vaults).
+    "derivatives": Category.LP, "options": Category.LP, "perps": Category.LP,
+    "options vault": Category.STAKING, "prediction market": Category.LP,
     "lending": Category.LENDING, "cdp": Category.LENDING, "nft lending": Category.LENDING,
     "uncollateralized lending": Category.LENDING, "rwa lending": Category.LENDING,
     "liquid staking": Category.STAKING, "liquid restaking": Category.STAKING, "restaking": Category.STAKING,
     "staking pool": Category.STAKING, "yield": Category.STAKING, "yield aggregator": Category.STAKING,
     "leveraged farming": Category.LP, "farm": Category.LP, "liquidity manager": Category.LP,
-    "basis trading": Category.STAKING, "rwa": Category.HOLDING, "synthetics": Category.TRADING,
+    "basis trading": Category.STAKING, "rwa": Category.HOLDING, "synthetics": Category.LP,
     "algo-stables": Category.HOLDING, "cross chain": Category.LP, "bridge": Category.LP,
+    "cross chain bridge": Category.LP, "canonical bridge": Category.LP, "bridge aggregator": Category.LP,
+    "dex aggregator": Category.LP, "perps aggregator": Category.LP, "trading app": Category.LP,
+    "liquidity automation": Category.LP, "risk curators": Category.LENDING, "onchain capital allocator": Category.STAKING,
+    "reserve currency": Category.STAKING, "governance incentives": Category.STAKING, "cedefi": Category.STAKING,
+    "indexes": Category.HOLDING, "insurance": Category.STAKING, "launchpad": Category.STAKING,
 }
 
 

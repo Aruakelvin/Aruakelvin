@@ -53,7 +53,8 @@ class MerklSource(Source):
         chain_obj = r.get("chain") or {}
         chain = canon_chain(chain_obj.get("name")) if chain_obj.get("name") else canon_chain(r.get("chainId"))
         proto_obj = r.get("protocol") or {}
-        protocol = canon_protocol(proto_obj.get("id") or proto_obj.get("name") or r.get("mainProtocol"))
+        tags = r.get("tags") or []
+        protocol = canon_protocol(proto_obj.get("id") or proto_obj.get("name") or (tags[0] if tags else None))
 
         reward_tokens: list[RewardToken] = []
         seen: set[str] = set()
@@ -80,12 +81,20 @@ class MerklSource(Source):
             protocol=protocol,
             market=r.get("name") or r.get("identifier") or "?",
             category=category_from_merkl(r.get("action"), r.get("type")),
-            tvl_usd=to_float(r.get("tvl")),
-            base_apr=None,  # Merkl reports incentive APR only
+            tvl_usd=to_float(r.get("tvl")) or None,  # 0 = volume/buy campaigns with no deposits
+            base_apr=to_float(r.get("nativeApr")),  # organic yield, when Merkl knows it
             reward_apr=apr,
             reward_tokens=reward_tokens,
             daily_rewards_usd=daily,
             url=url,
             tokens=[t.get("symbol") for t in (r.get("tokens") or []) if t.get("symbol")],
-            extra={"type": r.get("type"), "action": r.get("action"), "tags": r.get("tags")},
+            token_addresses={
+                str(t["address"]).lower(): t["symbol"]
+                for t in [*(r.get("tokens") or []), *((b.get("token") or {}) for b in
+                          ((r.get("rewardsRecord") or {}).get("breakdowns") or []))]
+                if t.get("address") and t.get("symbol")
+            },
+            extra={"type": r.get("type"), "action": r.get("action"), "tags": tags,
+                   "unverified": "[unverified]" in str(r.get("name", "")).lower(),
+                   "campaign_end": r.get("latestCampaignEnd"), "live_campaigns": r.get("liveCampaigns")},
         )
