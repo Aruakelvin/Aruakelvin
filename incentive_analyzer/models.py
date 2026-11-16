@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import time
 from dataclasses import asdict, dataclass, field
 from enum import Enum
 from typing import Any
@@ -59,6 +60,17 @@ class Opportunity:
     score: float = 0.0
     flags: list[str] = field(default_factory=list)
 
+    def days_left(self, now: float | None = None) -> float | None:
+        """Days until the last live reward campaign ends (None if unknown)."""
+        end = self.extra.get("campaign_end")
+        try:
+            end = float(end) if end not in (None, "") else None
+        except (TypeError, ValueError):
+            end = None
+        if not end:
+            return None
+        return (end - (time.time() if now is None else now)) / 86400
+
     @property
     def total_apr(self) -> float:
         return (self.base_apr or 0.0) + (self.reward_apr or 0.0)
@@ -87,4 +99,6 @@ class Opportunity:
         d["total_apr"] = self.total_apr
         d["reward_share"] = self.reward_share
         d["est_daily_rewards_usd"] = self.est_daily_rewards_usd
+        d["days_left"] = self.days_left()
+        d["renewals"] = self.extra.get("renewals")
         return d

@@ -33,6 +33,8 @@ def _common(p: argparse.ArgumentParser) -> None:
     g.add_argument("--min-reward-apr", type=float, default=0.0, help="minimum incentive APR %% (default 0)")
     g.add_argument("--max-apr", type=float, help="drop markets above this total APR %%")
     g.add_argument("--min-daily-rewards", type=float, default=0.0, help="minimum USD rewards emitted per day")
+    g.add_argument("--min-days-left", type=float,
+                   help="drop markets whose reward campaign ends sooner than this (rows with a known end date)")
     g.add_argument("--stable", action="store_true", help="stablecoin-only markets")
     g.add_argument("--safe", action="store_true", help="exclude apr_outlier, low_tvl and net_negative markets")
     s = p.add_argument_group("data")
@@ -41,6 +43,8 @@ def _common(p: argparse.ArgumentParser) -> None:
                    help="keep DefiLlama and Merkl rows for the same market separate")
     s.add_argument("--no-history", action="store_true",
                    help="skip the per-pool TVL history check (faster, but no tvl_drop flag)")
+    s.add_argument("--no-fee-estimates", action="store_true",
+                   help="don't estimate LP fee yield from GeckoTerminal volume")
     s.add_argument("--history-limit", type=int, default=HISTORY_MAX_ROWS,
                    help=f"check TVL history for at most this many rows (default {HISTORY_MAX_ROWS}; "
                         "one request each, cached)")
@@ -82,7 +86,7 @@ def _filters(args: argparse.Namespace) -> Filters:
     return Filters(
         chains=args.chain, protocols=args.protocol, categories=cats, token=args.token, reward_token=args.reward_token,
         min_tvl=args.min_tvl, min_reward_apr=args.min_reward_apr, max_apr=args.max_apr,
-        min_daily_rewards=args.min_daily_rewards, stablecoin_only=args.stable,
+        min_daily_rewards=args.min_daily_rewards, min_days_left=args.min_days_left, stablecoin_only=args.stable,
         exclude_flags=("apr_outlier", "low_tvl", "net_negative") if args.safe else (),
     )
 
@@ -98,7 +102,8 @@ def main(argv: list[str] | None = None) -> int:
 
     http = HttpClient(cache_dir=args.cache_dir, cache_ttl=args.cache_ttl, timeout=args.timeout)
     try:
-        analyzer = Analyzer(http, args.source or None, merge=not args.no_merge)
+        analyzer = Analyzer(http, args.source or None, merge=not args.no_merge,
+                            fee_estimates=not args.no_fee_estimates)
     except ValueError as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 2

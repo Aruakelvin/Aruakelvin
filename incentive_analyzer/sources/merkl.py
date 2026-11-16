@@ -96,6 +96,7 @@ class MerklSource(Source):
             },
             extra={"type": r.get("type"), "action": r.get("action"), "tags": tags,
                    "chain_id": r.get("chainId") or chain_obj.get("id"),
+                   "identifier": r.get("identifier"),
                    "unverified": "[unverified]" in str(r.get("name", "")).lower(),
                    "campaign_end": r.get("latestCampaignEnd"), "live_campaigns": r.get("liveCampaigns")},
         )

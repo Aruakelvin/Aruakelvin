@@ -19,15 +19,26 @@ COLUMNS = [
     ("Market", lambda i, o: o.market),
     ("Type", lambda i, o: o.category.value),
     ("TVL", lambda i, o: usd(o.tvl_usd)),
-    ("Base%", lambda i, o: pct(o.base_apr)),
+    ("Base%", lambda i, o: ("~" if o.extra.get("base_apr_estimated") else "") + pct(o.base_apr)),
     ("Reward%", lambda i, o: pct(o.reward_apr)),
     ("Total%", lambda i, o: pct(o.total_apr)),
     ("Rewards/day", lambda i, o: usd(o.est_daily_rewards_usd)),
     ("Reward tokens", lambda i, o: ",".join(r.symbol for r in o.reward_tokens[:3]) or "-"),
     ("Score", lambda i, o: f"{o.score:.1f}"),
+    ("Ends", lambda i, o: ends(o)),
     ("Flags", lambda i, o: ",".join(f for f in o.flags if f != "stable") or "-"),
     ("Src", lambda i, o: o.source),
 ]
+
+
+def ends(o: Opportunity) -> str:
+    """Time left on the reward campaign, e.g. '10d', '<1d', '3d ↻2' (renewed twice)."""
+    left = o.days_left()
+    if left is None:
+        return "-"
+    s = "ended" if left <= 0 else "<1d" if left < 1 else f"{left:.0f}d"
+    r = o.extra.get("renewals")
+    return f"{s} ↻{r}" if r else s
 
 
 def usd(v: float | None) -> str:
@@ -79,6 +90,7 @@ def to_json(opps: Sequence[Opportunity], meta: dict | None = None) -> str:
 
 
 CSV_FIELDS = ["chain", "protocol", "market", "category", "tvl_usd", "base_apr", "reward_apr", "total_apr",
+              "days_left", "renewals",
               "est_daily_rewards_usd", "apr_30d_mean", "reward_tokens", "score", "flags", "source", "url"]
 
 
@@ -177,7 +189,7 @@ __ERRORS__
 <th data-k=chain>Chain</th><th data-k=protocol>Protocol</th><th data-k=market>Market</th><th data-k=category>Type</th>
 <th class=n data-k=tvl_usd>TVL</th><th class=n data-k=base_apr>Base %</th><th class=n data-k=reward_apr>Reward %</th>
 <th class=n data-k=total_apr>Total %</th><th class=n data-k=est_daily_rewards_usd>Rewards/day</th><th>Reward tokens</th>
-<th class=n data-k=score>Score</th><th>Flags</th><th data-k=source>Source</th></tr></thead><tbody></tbody></table></div>
+<th class=n data-k=days_left>Ends</th><th class=n data-k=score>Score</th><th>Flags</th><th data-k=source>Source</th></tr></thead><tbody></tbody></table></div>
 __SUMMARY__
 </main><script>
 const D=__DATA__;const $=s=>document.querySelector(s);
@@ -185,16 +197,16 @@ const usd=v=>v==null?'-':Math.abs(v)>=1e9?'$'+(v/1e9).toFixed(2)+'B':Math.abs(v)
 const pc=v=>v==null?'-':v.toFixed(2);const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 let sk='score',sd=-1;
 for(const [id,k] of [['#chain','chain'],['#cat','category']]){[...new Set(D.map(o=>o[k]))].sort().forEach(v=>$(id).insertAdjacentHTML('beforeend',`<option>${esc(v)}</option>`))}
-const risky=new Set(['apr_outlier','low_tvl','net_negative']);
+const risky=new Set(['apr_outlier','low_tvl','net_negative','tvl_drop','ending_soon']);
 function render(){const q=$('#q').value.toLowerCase(),c=$('#chain').value,t=$('#cat').value,m=+$('#tvl').value||0,s=$('#safe').checked;
 const rows=D.filter(o=>(!c||o.chain===c)&&(!t||o.category===t)&&(o.tvl_usd||0)>=m&&(!s||!o.flags.some(f=>risky.has(f)))&&
 (!q||[o.market,o.protocol,o.chain,...o.tokens,...o.reward_tokens.map(r=>r.symbol)].join(' ').toLowerCase().includes(q)))
 .sort((a,b)=>{const x=a[sk],y=b[sk];return (typeof x==='string'?String(x).localeCompare(y):((x??-1e18)-(y??-1e18)))*sd});
 $('#t tbody').innerHTML=rows.slice(0,1000).map(o=>`<tr><td>${esc(o.chain)}</td><td>${esc(o.protocol)}</td>
 <td>${o.url?`<a href="${esc(o.url)}" target=_blank rel=noopener>${esc(o.market)}</a>`:esc(o.market)}</td><td>${esc(o.category)}</td>
-<td class=n>${usd(o.tvl_usd)}</td><td class=n>${pc(o.base_apr)}</td><td class=n>${pc(o.reward_apr)}</td><td class=n>${pc(o.total_apr)}</td>
+<td class=n>${usd(o.tvl_usd)}</td><td class=n>${o.extra.base_apr_estimated?'~':''}${pc(o.base_apr)}</td><td class=n>${pc(o.reward_apr)}</td><td class=n>${pc(o.total_apr)}</td>
 <td class=n>${usd(o.est_daily_rewards_usd)}</td><td>${esc(o.reward_tokens.slice(0,3).map(r=>r.symbol).join(', '))}</td>
-<td class=n>${o.score.toFixed(1)}</td><td>${o.flags.map(f=>`<span class="tag${risky.has(f)?' r':''}">${esc(f)}</span>`).join('')}</td><td>${esc(o.source)}</td></tr>`).join('')}
+<td class=n>${o.days_left==null?'-':o.days_left<=0?'ended':o.days_left<1?'&lt;1d':Math.round(o.days_left)+'d'}${o.renewals?' ↻'+o.renewals:''}</td><td class=n>${o.score.toFixed(1)}</td><td>${o.flags.map(f=>`<span class="tag${risky.has(f)?' r':''}">${esc(f)}</span>`).join('')}</td><td>${esc(o.source)}</td></tr>`).join('')}
 document.querySelectorAll('th[data-k]').forEach(th=>th.onclick=()=>{const k=th.dataset.k;sd=sk===k?-sd:-1;sk=k;render()});
 ['#q','#chain','#cat','#tvl','#safe'].forEach(id=>$(id).addEventListener('input',render));render();
 </script></body></html>
