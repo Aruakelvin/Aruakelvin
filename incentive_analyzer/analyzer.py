@@ -9,6 +9,7 @@ from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 
 from .http import HttpClient
+from .campaigns import ENDING_SOON_DAYS, attach_renewals
 from .history import attach_history, llama_pool_id
 from .merge import merge_duplicates
 from .token_names import resolve_reward_token_names
@@ -46,6 +47,7 @@ class Filters:
     min_reward_apr: float = 0.0
     max_apr: float | None = None
     min_daily_rewards: float = 0.0
+    min_days_left: float | None = None   # applies to rows whose campaign end is known
     stablecoin_only: bool = False
     exclude_flags: Sequence[str] = ()
 
@@ -66,6 +68,10 @@ class Filters:
             return False
         if self.min_daily_rewards and (o.est_daily_rewards_usd or 0) < self.min_daily_rewards:
             return False
+        if self.min_days_left is not None:
+            left = o.days_left()
+            if left is not None and left < self.min_days_left:
+                return False
         if self.stablecoin_only and not o.stablecoin:
             return False
         if self.exclude_flags and set(self.exclude_flags) & set(o.flags):
@@ -134,6 +140,7 @@ class Analyzer:
         rows = [o for o in rows if id(o) not in self._history_checked]
         self._history_checked.update(id(o) for o in rows)
         n = attach_history(rows, self.http)
+        attach_renewals(rows, self.http)
         for o in rows:
             o.flags = risk_flags(o)
             o.score = score(o)
@@ -236,6 +243,10 @@ def risk_flags(o: Opportunity) -> list[str]:
         flags.append("reward_mismatch")
     if o.extra.get("unverified"):
         flags.append("unverified")
+    left = o.days_left()
+    if left is not None and left <= ENDING_SOON_DAYS and not o.extra.get("renewals"):
+        # Ends within a week with no record of back-to-back renewal (or not checked).
+        flags.append("ending_soon")
     if o.stablecoin:
         flags.append("stable")
     return flags
@@ -279,7 +290,7 @@ def score(o: Opportunity) -> float:
         ratio = min(o.total_apr, usual) / max(o.total_apr, usual)
         s *= 0.5 + 0.5 * ratio
 
-    haircut = {"apr_outlier": 0.3, "low_tvl": 0.5, "il_risk": 0.85, "apr_spike": 0.8,
+    haircut = {"apr_outlier": 0.3, "low_tvl": 0.5, "il_risk": 0.85, "apr_spike": 0.8, "ending_soon": 0.75,
                "tvl_drop": 0.4, "unverified": 0.5, "net_negative": 0.0}
     for f in o.flags:
         s *= haircut.get(f, 1.0)

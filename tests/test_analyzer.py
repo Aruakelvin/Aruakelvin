@@ -3,6 +3,7 @@ import copy
 import io
 import json
 import os
+import time
 import tempfile
 import unittest
 from pathlib import Path
@@ -34,6 +35,9 @@ class FakeHttp:
             if not f.exists():
                 raise HttpError(f"no chart fixture for {url}")
             return json.loads(f.read_text())
+        if url.endswith("/v4/campaigns"):
+            f = FIX / f"merkl_campaigns_{(params or {}).get('opportunityId')}.json"
+            return json.loads(f.read_text()) if f.exists() else []
         if url.endswith("/v4/tokens"):
             known = {(8453, "0x940181a94a35a4569e4529a3cdfb74e38fd98631"): "AERO",
                      (1, "0x7fc66500c84a76ad7e9c93437bfc5ac33e2ddae9"): "AAVE"}
@@ -367,6 +371,88 @@ class HistoryScopeTests(Base):
         an.add_history([o])
         an.add_history([o])
         self.assertEqual(len([u for u, _ in self.http.calls if "/chart/" in u]), 1)
+
+
+class CampaignEndTests(Base):
+    """ETH/USDG on Robinhood Chain: 50K USDG over Nov 12-26, renewed back-to-back."""
+    NOW = 1794830400  # 2026-11-15 12:00 UTC: 11.05 days before the Nov 26 13:00 end
+
+    def setUp(self):
+        super().setUp()
+        self.real_time = time.time
+        time.time = lambda: self.NOW
+
+    def tearDown(self):
+        time.time = self.real_time
+        super().tearDown()
+
+    def ending_in(self, o, days):
+        o.extra["campaign_end"] = str(int(self.NOW + days * 86400))
+        o.extra.pop("renewals", None)
+        o.flags = analyzer_mod.risk_flags(o)
+        o.score = analyzer_mod.score(o)
+        return o
+
+    def test_days_left_and_column(self):
+        o = self.ending_in(self.get("merkl", "m2"), 11.04)
+        self.assertAlmostEqual(o.days_left(), 11.04, places=2)
+        self.assertEqual(report.ends(o), "11d")
+        self.assertNotIn("ending_soon", o.flags)
+        self.assertEqual(report.ends(self.get("defillama", "p-aave-usdc")), "-")  # unknown end
+
+    def test_ending_soon_without_renewal_record(self):
+        o = self.get("merkl", "m2")
+        before = analyzer_mod.score(o)
+        self.ending_in(o, 3)
+        self.assertIn("ending_soon", o.flags)
+        self.assertAlmostEqual(o.score, before * 0.75, places=3)
+        self.assertEqual(report.ends(self.ending_in(o, 0.5)), "<1d")
+        self.assertEqual(report.ends(self.ending_in(o, -0.1)), "ended")
+
+    def test_renewed_campaign_not_flagged(self):
+        o = self.ending_in(self.get("merkl", "m1"), 3)   # fixture history: renewed once back-to-back
+        self.assertIn("ending_soon", o.flags)          # not yet checked
+        Analyzer(self.http).add_history([o])
+        self.assertEqual(o.extra["renewals"], 1)
+        self.assertNotIn("ending_soon", o.flags)
+        self.assertEqual(report.ends(o), "3d ↻1")
+        self.assertTrue(any(u.endswith("/v4/campaigns") for u, _ in self.http.calls))
+
+    def test_long_campaigns_skip_renewal_lookup(self):
+        o = self.ending_in(self.get("merkl", "m1"), 30)
+        Analyzer(self.http).add_history([o])
+        self.assertNotIn("renewals", o.extra)
+        self.assertFalse([u for u, _ in self.http.calls if u.endswith("/v4/campaigns")])
+
+    def test_count_renewals(self):
+        from incentive_analyzer.campaigns import count_renewals
+        day = 86400
+        chain3 = [{"startTimestamp": s, "endTimestamp": s + 7 * day} for s in (0, 7 * day, 14 * day)]
+        self.assertEqual(count_renewals(chain3, now=15 * day), 2)
+        gap = [{"startTimestamp": 0, "endTimestamp": 7 * day}, {"startTimestamp": 20 * day, "endTimestamp": 27 * day}]
+        self.assertEqual(count_renewals(gap, now=21 * day), 0)      # 13-day gap: a new program, not a renewal
+        overlap = [{"startTimestamp": 0, "endTimestamp": 10 * day}, {"startTimestamp": 8 * day, "endTimestamp": 15 * day}]
+        self.assertEqual(count_renewals(overlap, now=9 * day), 1)
+        future = chain3 + [{"startTimestamp": 30 * day, "endTimestamp": 37 * day}]
+        self.assertEqual(count_renewals(future, now=15 * day), 2)   # scheduled-but-unstarted ignored
+        self.assertEqual(count_renewals([], now=0), 0)
+        real = json.loads((FIX / "merkl_campaigns_m1.json").read_text())
+        self.assertEqual(count_renewals(real, now=self.NOW), 1)
+
+    def test_min_days_left_filter(self):
+        self.ending_in(self.get("merkl", "m2"), 2)
+        self.ending_in(self.get("merkl", "m1"), 20)
+        ids = {o.source_id for o in select(self.opps, Filters(min_days_left=7))}
+        self.assertNotIn("m2", ids)
+        self.assertIn("m1", ids)
+        self.assertIn("p-aave-usdc", ids)   # end unknown: kept
+
+    def test_exports_include_days_left(self):
+        self.ending_in(self.get("merkl", "m2"), 5)
+        rows = select(self.opps, Filters(token="usdc"))
+        self.assertIn("days_left", report.to_csv(rows).splitlines()[0])
+        d = next(x for x in json.loads(report.to_json(rows))["opportunities"] if x["source_id"] == "m2")
+        self.assertAlmostEqual(d["days_left"], 5, places=3)
 
 
 class CollateralTests(Base):

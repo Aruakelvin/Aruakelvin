@@ -79,6 +79,7 @@ API responses are cached in `~/.cache/incentive-analyzer` for 10 minutes. Change
 ## How results are computed
 
 **Columns**
+- **Base%** is only what the source reports. For many concentrated-liquidity LP pools from Merkl, it shows `-` even though LPs earn trading fees, so **Total% understates those pools**. The analyzer doesn't estimate fees: per-pool volume isn't available from its sources, ve(3,3) DEXs (Aerodrome, Velodrome and others) pay fees to voters rather than LPs, and some pools use dynamic fees.
 - **Base%**: organic yield (trading fees or supply interest). For borrow markets it is the negative borrow rate, so **Total%** is your net carry.
 - **Reward%**: yield from incentives only.
 - **Rewards/day**: USD emitted per day. This is the source's figure when available (Merkl), otherwise TVL × Reward% / 365.
@@ -98,9 +99,12 @@ API responses are cached in `~/.cache/incentive-analyzer` for 10 minutes. Change
 | `multi_source` | Merged from DefiLlama and Merkl, so the figures are cross-checked |
 | `reward_mismatch` | The two sources' reward APRs differ by more than 25%; the higher one is shown |
 | `unverified` | Merkl marks the campaign `[UNVERIFIED]` |
+| `ending_soon` | The reward campaign ends within 7 days and has no record of being renewed back-to-back (see below) |
 | `stable` | Stablecoin market |
 
-**Score.** The score is meant to read as "APR you can trust". Its APR input is capped at 150% and weighted by market depth on a log scale ($1k TVL → 0.05×, $1M → 0.62×, $100M+ → 1×). It is also discounted by how far current APR is from its usual level (see `apr_spike`). Then each flag applies a multiplier: outlier 0.3, TVL drop 0.4, low TVL 0.5, unverified 0.5, IL 0.85, spike 0.8, net-negative 0. Volume campaigns with no APR score 2·log10(USD per day).
+**Campaign end (`Ends` column).** For markets with Merkl campaigns, `Ends` shows the days left until the last live campaign ends, e.g. `10d`. About half of all Merkl campaigns end within a week, but most are weekly programs renewed back-to-back. So for shown rows ending within 7 days, the analyzer fetches the campaign history (`api.merkl.xyz/v4/campaigns`) and counts back-to-back renewals, shown as `3d ↻26`. Only campaigns with no renewal record get `ending_soon`. Use `--min-days-left N` to drop markets whose rewards end sooner than N days. DefiLlama-only rows show `-`, because their end date isn't known.
+
+**Score.** The score is meant to read as "APR you can trust". Its APR input is capped at 150% and weighted by market depth on a log scale ($1k TVL → 0.05×, $1M → 0.62×, $100M+ → 1×). It is also discounted by how far current APR is from its usual level (see `apr_spike`). Then each flag applies a multiplier: outlier 0.3, TVL drop 0.4, low TVL 0.5, unverified 0.5, ending soon 0.75, IL 0.85, spike 0.8, net-negative 0. Volume campaigns with no APR score 2·log10(USD per day).
 
 ## Development
 

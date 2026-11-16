@@ -33,6 +33,8 @@ def _common(p: argparse.ArgumentParser) -> None:
     g.add_argument("--min-reward-apr", type=float, default=0.0, help="minimum incentive APR %% (default 0)")
     g.add_argument("--max-apr", type=float, help="drop markets above this total APR %%")
     g.add_argument("--min-daily-rewards", type=float, default=0.0, help="minimum USD rewards emitted per day")
+    g.add_argument("--min-days-left", type=float,
+                   help="drop markets whose reward campaign ends sooner than this (rows with a known end date)")
     g.add_argument("--stable", action="store_true", help="stablecoin-only markets")
     g.add_argument("--safe", action="store_true", help="exclude apr_outlier, low_tvl and net_negative markets")
     s = p.add_argument_group("data")
@@ -82,7 +84,7 @@ def _filters(args: argparse.Namespace) -> Filters:
     return Filters(
         chains=args.chain, protocols=args.protocol, categories=cats, token=args.token, reward_token=args.reward_token,
         min_tvl=args.min_tvl, min_reward_apr=args.min_reward_apr, max_apr=args.max_apr,
-        min_daily_rewards=args.min_daily_rewards, stablecoin_only=args.stable,
+        min_daily_rewards=args.min_daily_rewards, min_days_left=args.min_days_left, stablecoin_only=args.stable,
         exclude_flags=("apr_outlier", "low_tvl", "net_negative") if args.safe else (),
     )
 
