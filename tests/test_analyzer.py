@@ -409,9 +409,12 @@ class CampaignEndTests(Base):
         self.assertEqual(report.ends(self.get("defillama", "p-aave-usdc")), "-")  # unknown end
 
     def test_ending_soon_without_renewal_record(self):
-        o = self.get("merkl", "m2")
+        o = self.get("merkl", "m2")   # no campaign-history fixture: checked, 0 renewals
         before = analyzer_mod.score(o)
         self.ending_in(o, 3)
+        self.assertNotIn("ending_soon", o.flags)        # not checked yet: no flag
+        Analyzer(self.http).add_history([o])
+        self.assertEqual(o.extra["renewals"], 0)
         self.assertIn("ending_soon", o.flags)
         self.assertAlmostEqual(o.score, before * 0.75, places=3)
         self.assertEqual(report.ends(self.ending_in(o, 0.5)), "<1d")
@@ -419,12 +422,18 @@ class CampaignEndTests(Base):
 
     def test_renewed_campaign_not_flagged(self):
         o = self.ending_in(self.get("merkl", "m1"), 3)   # fixture history: renewed once back-to-back
-        self.assertIn("ending_soon", o.flags)          # not yet checked
+        self.assertNotIn("ending_soon", o.flags)       # not checked yet: no flag
         Analyzer(self.http).add_history([o])
         self.assertEqual(o.extra["renewals"], 1)
         self.assertNotIn("ending_soon", o.flags)
         self.assertEqual(report.ends(o), "3d ↻1")
         self.assertTrue(any(u.endswith("/v4/campaigns") for u, _ in self.http.calls))
+
+    def test_failed_history_lookup_does_not_flag(self):
+        o = self.ending_in(self.get("merkl", "m2"), 3)
+        Analyzer(FakeHttp(fail={"/v4/campaigns"})).add_history([o])
+        self.assertNotIn("renewals", o.extra)
+        self.assertNotIn("ending_soon", o.flags)
 
     def test_long_campaigns_skip_renewal_lookup(self):
         o = self.ending_in(self.get("merkl", "m1"), 30)

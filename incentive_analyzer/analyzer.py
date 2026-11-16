@@ -252,8 +252,10 @@ def risk_flags(o: Opportunity) -> list[str]:
     elif o.extra.get("fee_unknown"):
         flags.append("fee_unknown")
     left = o.days_left()
-    if left is not None and left <= ENDING_SOON_DAYS and not o.extra.get("renewals"):
-        # Ends within a week with no record of back-to-back renewal (or not checked).
+    if left is not None and left <= ENDING_SOON_DAYS and o.extra.get("renewals") == 0:
+        # Ends within a week, and its campaign history was checked and shows no
+        # back-to-back renewal. Unchecked rows (below the history window) aren't
+        # flagged: most short campaigns are routinely renewed weekly programs.
         flags.append("ending_soon")
     if o.stablecoin:
         flags.append("stable")
