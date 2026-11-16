@@ -79,7 +79,10 @@ API responses are cached in `~/.cache/incentive-analyzer` for 10 minutes. Change
 ## How results are computed
 
 **Columns**
-- **Base%** is only what the source reports. For many concentrated-liquidity LP pools from Merkl, it shows `-` even though LPs earn trading fees, so **Total% understates those pools**. The analyzer doesn't estimate fees: per-pool volume isn't available from its sources, ve(3,3) DEXs (Aerodrome, Velodrome and others) pay fees to voters rather than LPs, and some pools use dynamic fees.
+- **Base%** is what the source reports. Merkl often reports no fee yield for concentrated-liquidity LP pools, so for those the analyzer estimates it from [GeckoTerminal](https://www.geckoterminal.com) pool data: **24h volume × fee tier ÷ pool liquidity × 365**. Estimates are shown with `~` (e.g. `~37.74`) and flagged `fee_estimated`.
+  - **Covered:** Merkl LP pools with a real pool address and a fixed fee tier (Uniswap V3/V4, PancakeSwap, SushiSwap, QuickSwap, HyperSwap and similar), for the rows a scan shows. Pools are batched per chain, about one request per chain (the free API allows roughly 8 requests a minute; a rate-limited lookup waits 30s once, then is skipped).
+  - **Not estimated:** ve(3,3) DEXs (Aerodrome, Velodrome, Pharaoh, Ramses…), whose fees go to voters, not LPs. Also dynamic-fee pools such as Uniswap V4 hook pools: their volume is recorded, but they're flagged `fee_unknown`, because the fee isn't published.
+  - **It's an average:** in-range concentrated positions earn more, out-of-range ones nothing, and 24h volume swings day to day. Use `--no-fee-estimates` to turn it off.
 - **Base%**: organic yield (trading fees or supply interest). For borrow markets it is the negative borrow rate, so **Total%** is your net carry.
 - **Reward%**: yield from incentives only.
 - **Rewards/day**: USD emitted per day. This is the source's figure when available (Merkl), otherwise TVL × Reward% / 365.
@@ -100,6 +103,8 @@ API responses are cached in `~/.cache/incentive-analyzer` for 10 minutes. Change
 | `reward_mismatch` | The two sources' reward APRs differ by more than 25%; the higher one is shown |
 | `unverified` | Merkl marks the campaign `[UNVERIFIED]` |
 | `ending_soon` | The reward campaign ends within 7 days and has no record of being renewed back-to-back (see below) |
+| `fee_estimated` | Base% is an estimate from GeckoTerminal volume and fee tier (shown with `~`) |
+| `fee_unknown` | The pool has trading volume but a dynamic fee, so its fee yield isn't included in Total% |
 | `stable` | Stablecoin market |
 
 **Campaign end (`Ends` column).** For markets with Merkl campaigns, `Ends` shows the days left until the last live campaign ends, e.g. `10d`. About half of all Merkl campaigns end within a week, but most are weekly programs renewed back-to-back. So for shown rows ending within 7 days, the analyzer fetches the campaign history (`api.merkl.xyz/v4/campaigns`) and counts back-to-back renewals, shown as `3d ↻26`. Only campaigns with no renewal record get `ending_soon`. Use `--min-days-left N` to drop markets whose rewards end sooner than N days. DefiLlama-only rows show `-`, because their end date isn't known.

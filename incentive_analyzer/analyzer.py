@@ -10,6 +10,7 @@ from dataclasses import dataclass, field
 
 from .http import HttpClient
 from .campaigns import ENDING_SOON_DAYS, attach_renewals
+from .gecko import attach_fee_estimates
 from .history import attach_history, llama_pool_id
 from .merge import merge_duplicates
 from .token_names import resolve_reward_token_names
@@ -95,11 +96,12 @@ class Filters:
 class Analyzer:
     def __init__(
         self, http: HttpClient | None = None, sources: Iterable[str] | None = None, merge: bool = True,
-        name_tokens: bool = True,
+        name_tokens: bool = True, fee_estimates: bool = True,
     ) -> None:
         self.http = http or HttpClient()
         self.merge = merge
         self.name_tokens = name_tokens
+        self.fee_estimates = fee_estimates
         self._history_checked: set[int] = set()
         names = list(sources) if sources else list(REGISTRY)
         unknown = [n for n in names if n not in REGISTRY]
@@ -141,6 +143,8 @@ class Analyzer:
         self._history_checked.update(id(o) for o in rows)
         n = attach_history(rows, self.http)
         attach_renewals(rows, self.http)
+        if self.fee_estimates:
+            attach_fee_estimates(rows, self.http)
         for o in rows:
             o.flags = risk_flags(o)
             o.score = score(o)
@@ -243,6 +247,10 @@ def risk_flags(o: Opportunity) -> list[str]:
         flags.append("reward_mismatch")
     if o.extra.get("unverified"):
         flags.append("unverified")
+    if o.extra.get("base_apr_estimated"):
+        flags.append("fee_estimated")
+    elif o.extra.get("fee_unknown"):
+        flags.append("fee_unknown")
     left = o.days_left()
     if left is not None and left <= ENDING_SOON_DAYS and not o.extra.get("renewals"):
         # Ends within a week with no record of back-to-back renewal (or not checked).

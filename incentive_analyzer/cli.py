@@ -43,6 +43,8 @@ def _common(p: argparse.ArgumentParser) -> None:
                    help="keep DefiLlama and Merkl rows for the same market separate")
     s.add_argument("--no-history", action="store_true",
                    help="skip the per-pool TVL history check (faster, but no tvl_drop flag)")
+    s.add_argument("--no-fee-estimates", action="store_true",
+                   help="don't estimate LP fee yield from GeckoTerminal volume")
     s.add_argument("--history-limit", type=int, default=HISTORY_MAX_ROWS,
                    help=f"check TVL history for at most this many rows (default {HISTORY_MAX_ROWS}; "
                         "one request each, cached)")
@@ -100,7 +102,8 @@ def main(argv: list[str] | None = None) -> int:
 
     http = HttpClient(cache_dir=args.cache_dir, cache_ttl=args.cache_ttl, timeout=args.timeout)
     try:
-        analyzer = Analyzer(http, args.source or None, merge=not args.no_merge)
+        analyzer = Analyzer(http, args.source or None, merge=not args.no_merge,
+                            fee_estimates=not args.no_fee_estimates)
     except ValueError as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 2

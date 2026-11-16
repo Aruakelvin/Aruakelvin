@@ -25,6 +25,7 @@ class FakeHttp:
     def __init__(self, fail: set[str] = frozenset()):
         self.fail = fail
         self.calls = []
+        self.gecko_429 = 0
 
     def get_json(self, url, params=None, ttl=None):
         self.calls.append((url, params))
@@ -35,6 +36,13 @@ class FakeHttp:
             if not f.exists():
                 raise HttpError(f"no chart fixture for {url}")
             return json.loads(f.read_text())
+        if "api.geckoterminal.com" in url:
+            if self.gecko_429 > 0:
+                self.gecko_429 -= 1
+                raise HttpError(f"GET {url} failed after 3 attempts: HTTP Error 429")
+            net = url.split("/networks/")[1].split("/")[0]
+            f = FIX / f"gecko_{net}.json"
+            return json.loads(f.read_text()) if f.exists() else {"data": []}
         if url.endswith("/v4/campaigns"):
             f = FIX / f"merkl_campaigns_{(params or {}).get('opportunityId')}.json"
             return json.loads(f.read_text()) if f.exists() else []
@@ -453,6 +461,75 @@ class CampaignEndTests(Base):
         self.assertIn("days_left", report.to_csv(rows).splitlines()[0])
         d = next(x for x in json.loads(report.to_json(rows))["opportunities"] if x["source_id"] == "m2")
         self.assertAlmostEqual(d["days_left"], 5, places=3)
+
+
+class FeeEstimateTests(Base):
+    V3, V4 = "0x" + "ab" * 20, "0x" + "cd" * 32
+
+    def pool(self, ident, type_="UNISWAP_V4", chain="robinhood-chain", protocol="uniswap", base=None):
+        o = copy.deepcopy(self.get("merkl", "m1"))
+        o.source_id, o.chain, o.protocol, o.base_apr = f"pool-{ident[:6]}-{protocol}", chain, protocol, base
+        o.market = "Provide liquidity to UniswapV4 SPY-MU 0.05%"
+        o.extra.update({"type": type_, "identifier": ident})
+        o.extra.pop("base_apr_estimated", None)
+        return o
+
+    def test_estimate_matches_formula(self):
+        from incentive_analyzer.gecko import attach_fee_estimates
+        o = self.pool(self.V3)
+        self.assertEqual(attach_fee_estimates([o], self.http, sleep=lambda s: None), 1)
+        self.assertAlmostEqual(o.base_apr, 849318 * 0.05 / 410702 * 365, places=3)   # ~37.7%
+        o.flags = analyzer_mod.risk_flags(o)
+        self.assertIn("fee_estimated", o.flags)
+        self.assertTrue(report.COLUMNS[6][1](1, o).startswith("~"))                   # Base% shown as ~37.74
+
+    def test_dynamic_fee_pool_gets_volume_not_guess(self):
+        from incentive_analyzer.gecko import attach_fee_estimates
+        o = self.pool(self.V4)  # like ETH/USDG: volume known, fee set by a hook
+        attach_fee_estimates([o], self.http, sleep=lambda s: None)
+        self.assertIsNone(o.base_apr)
+        self.assertEqual(o.extra["volume_usd_1d"], 37368404.0)
+        o.flags = analyzer_mod.risk_flags(o)
+        self.assertIn("fee_unknown", o.flags)
+
+    def test_ineligible_rows_skipped(self):
+        from incentive_analyzer.gecko import candidate
+        self.assertIsNotNone(candidate(self.pool(self.V3)))
+        self.assertIsNone(candidate(self.pool(self.V3, protocol="aerodrome")))     # ve(3,3): fees go to voters
+        self.assertIsNone(candidate(self.pool(self.V3, type_="ERC20LOGPROCESSOR")))  # identifier isn't a pool
+        self.assertIsNone(candidate(self.pool(self.V3, base=5.0)))                  # source already has base APR
+        self.assertIsNone(candidate(self.pool("0xpool1")))                           # not an address
+        self.assertIsNone(candidate(self.pool(self.V3, chain="neo")))                # network not mapped
+        self.assertIsNone(candidate(self.get("defillama", "p-aero-weth-usdc")))      # not a Merkl row
+
+    def test_rate_limit_waits_once_then_retries(self):
+        from incentive_analyzer.gecko import RATE_LIMIT_WAIT_S, attach_fee_estimates
+        waits = []
+        self.http.gecko_429 = 1
+        o = self.pool(self.V3)
+        self.assertEqual(attach_fee_estimates([o], self.http, sleep=waits.append), 1)
+        self.assertEqual(waits, [RATE_LIMIT_WAIT_S])
+
+    def test_persistent_rate_limit_is_harmless(self):
+        from incentive_analyzer.gecko import attach_fee_estimates
+        self.http.gecko_429 = 5
+        o = self.pool(self.V3)
+        self.assertEqual(attach_fee_estimates([o], self.http, sleep=lambda s: None), 0)
+        self.assertIsNone(o.base_apr)
+        self.assertFalse(o.extra["gecko_checked"])
+
+    def test_batched_per_network(self):
+        from incentive_analyzer.gecko import attach_fee_estimates
+        attach_fee_estimates([self.pool(self.V3), self.pool(self.V4)], self.http, sleep=lambda s: None)
+        gecko = [u for u, _ in self.http.calls if "geckoterminal" in u]
+        self.assertEqual(len(gecko), 1)
+        self.assertIn("/networks/robinhood/pools/multi/", gecko[0])
+
+    def test_can_be_disabled(self):
+        o = self.pool(self.V3)
+        Analyzer(self.http, fee_estimates=False).add_history([o])
+        self.assertIsNone(o.base_apr)
+        self.assertFalse([u for u, _ in self.http.calls if "geckoterminal" in u])
 
 
 class CollateralTests(Base):

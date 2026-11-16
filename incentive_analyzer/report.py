@@ -19,7 +19,7 @@ COLUMNS = [
     ("Market", lambda i, o: o.market),
     ("Type", lambda i, o: o.category.value),
     ("TVL", lambda i, o: usd(o.tvl_usd)),
-    ("Base%", lambda i, o: pct(o.base_apr)),
+    ("Base%", lambda i, o: ("~" if o.extra.get("base_apr_estimated") else "") + pct(o.base_apr)),
     ("Reward%", lambda i, o: pct(o.reward_apr)),
     ("Total%", lambda i, o: pct(o.total_apr)),
     ("Rewards/day", lambda i, o: usd(o.est_daily_rewards_usd)),
@@ -204,7 +204,7 @@ const rows=D.filter(o=>(!c||o.chain===c)&&(!t||o.category===t)&&(o.tvl_usd||0)>=
 .sort((a,b)=>{const x=a[sk],y=b[sk];return (typeof x==='string'?String(x).localeCompare(y):((x??-1e18)-(y??-1e18)))*sd});
 $('#t tbody').innerHTML=rows.slice(0,1000).map(o=>`<tr><td>${esc(o.chain)}</td><td>${esc(o.protocol)}</td>
 <td>${o.url?`<a href="${esc(o.url)}" target=_blank rel=noopener>${esc(o.market)}</a>`:esc(o.market)}</td><td>${esc(o.category)}</td>
-<td class=n>${usd(o.tvl_usd)}</td><td class=n>${pc(o.base_apr)}</td><td class=n>${pc(o.reward_apr)}</td><td class=n>${pc(o.total_apr)}</td>
+<td class=n>${usd(o.tvl_usd)}</td><td class=n>${o.extra.base_apr_estimated?'~':''}${pc(o.base_apr)}</td><td class=n>${pc(o.reward_apr)}</td><td class=n>${pc(o.total_apr)}</td>
 <td class=n>${usd(o.est_daily_rewards_usd)}</td><td>${esc(o.reward_tokens.slice(0,3).map(r=>r.symbol).join(', '))}</td>
 <td class=n>${o.days_left==null?'-':o.days_left<=0?'ended':o.days_left<1?'&lt;1d':Math.round(o.days_left)+'d'}${o.renewals?' ↻'+o.renewals:''}</td><td class=n>${o.score.toFixed(1)}</td><td>${o.flags.map(f=>`<span class="tag${risky.has(f)?' r':''}">${esc(f)}</span>`).join('')}</td><td>${esc(o.source)}</td></tr>`).join('')}
 document.querySelectorAll('th[data-k]').forEach(th=>th.onclick=()=>{const k=th.dataset.k;sd=sk===k?-sd:-1;sk=k;render()});
