@@ -110,6 +110,10 @@ class DefiLlamaSource(Source):
             url=POOL_PAGE.format(pool=p.get("pool")),
             tokens=list(p.get("underlyingTokens") or []),
             extra={
+                "llama_pool": p.get("pool"),
+                # APR 30 days ago and over the pool's whole history, for spike detection.
+                "apr_30d_ago": _minus(to_float(p.get("apy")), to_float(p.get("apyPct30D"))),
+                "apr_hist_mean": to_float(p.get("mu")),
                 "exposure": p.get("exposure"),
                 "outlier": p.get("outlier"),
                 "volume_usd_1d": to_float(p.get("volumeUsd1d")),
@@ -117,6 +121,10 @@ class DefiLlamaSource(Source):
                 "prediction": (p.get("predictions") or {}).get("predictedClass"),
             },
         )
+
+
+def _minus(a: float | None, b: float | None) -> float | None:
+    return None if a is None or b is None else a - b
 
 
 def _short(addr: str) -> str:

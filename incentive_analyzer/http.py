@@ -38,19 +38,23 @@ class HttpClient:
         self.retries = retries
         self.backoff = backoff
 
-    def _cache_path(self, url: str) -> Path | None:
-        if not self.cache_dir or self.cache_ttl <= 0:
+    def _cache_path(self, url: str, ttl: int) -> Path | None:
+        if not self.cache_dir or ttl <= 0:
             return None
         digest = hashlib.sha256(url.encode()).hexdigest()[:32]
         return self.cache_dir / f"{digest}.json"
 
-    def get_json(self, url: str, params: dict[str, Any] | None = None) -> Any:
+    def get_json(self, url: str, params: dict[str, Any] | None = None, ttl: int | None = None) -> Any:
+        """GET a JSON document. ``ttl`` overrides the cache lifetime for this
+        request (e.g. long for data that never changes); caching stays off if
+        the client was created with ``cache_ttl=0``."""
+        ttl = self.cache_ttl if ttl is None or self.cache_ttl <= 0 else ttl
         if params:
             query = urllib.parse.urlencode({k: v for k, v in params.items() if v is not None}, doseq=True)
             url = f"{url}{'&' if '?' in url else '?'}{query}"
 
-        cache_path = self._cache_path(url)
-        if cache_path and cache_path.exists() and time.time() - cache_path.stat().st_mtime < self.cache_ttl:
+        cache_path = self._cache_path(url, ttl)
+        if cache_path and cache_path.exists() and time.time() - cache_path.stat().st_mtime < ttl:
             try:
                 return json.loads(cache_path.read_text())
             except (OSError, json.JSONDecodeError):

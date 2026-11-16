@@ -95,6 +95,7 @@ class MerklSource(Source):
                 if t.get("address") and t.get("symbol")
             },
             extra={"type": r.get("type"), "action": r.get("action"), "tags": tags,
+                   "chain_id": r.get("chainId") or chain_obj.get("id"),
                    "unverified": "[unverified]" in str(r.get("name", "")).lower(),
                    "campaign_end": r.get("latestCampaignEnd"), "live_campaigns": r.get("liveCampaigns")},
         )

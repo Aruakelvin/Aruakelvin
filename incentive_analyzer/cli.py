@@ -9,7 +9,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from . import __version__, report
-from .analyzer import SORT_KEYS, Analyzer, Filters, select, summarize
+from .analyzer import SORT_KEYS, Analyzer, Filters, select, select_with_history, summarize
 from .http import DEFAULT_CACHE_DIR, HttpClient
 from .models import Category
 from .sources import REGISTRY
@@ -37,6 +37,8 @@ def _common(p: argparse.ArgumentParser) -> None:
     s.add_argument("-s", "--source", type=_csv, default=[], help=f"sources to use (default all: {', '.join(REGISTRY)})")
     s.add_argument("--no-merge", action="store_true",
                    help="keep DefiLlama and Merkl rows for the same market separate")
+    s.add_argument("--no-history", action="store_true",
+                   help="skip the per-pool TVL history check (faster, but no tvl_drop flag)")
     s.add_argument("--cache-ttl", type=int, default=600, help="seconds to reuse cached API responses (0 disables)")
     s.add_argument("--cache-dir", type=Path, default=DEFAULT_CACHE_DIR)
     s.add_argument("--timeout", type=float, default=45.0)
@@ -114,7 +116,8 @@ def main(argv: list[str] | None = None) -> int:
         print(report.summary_table(summarize(matched, by=args.by, top=args.limit), args.by))
         return 0
 
-    rows = select(collected.opportunities, filters, args.sort, args.limit or None)
+    rows = select_with_history(None if args.no_history else analyzer, collected.opportunities,
+                               filters, args.sort, args.limit or None)
     meta = {
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "sources": collected.source_counts,

@@ -19,7 +19,7 @@ The merged row keeps DefiLlama's base APY, 30-day mean and risk data, and takes 
 
 In a live run on 2026-11-15, a full scan took about 3 seconds and returned **2,057 incentivized markets** (DefiLlama 1,477 + Merkl 580) on more than 20 chains, worth about $4.6M/day in rewards.
 
-DefiLlama reports reward tokens as contract addresses. Where Merkl knows the same token on the same chain, the address is replaced with its symbol.
+DefiLlama reports reward tokens as contract addresses. The analyzer names them in two steps: first with symbols Merkl already reported for the same token on the same chain, then by looking each remaining EVM address up in Merkl's token list (`api.merkl.xyz/v4/tokens`, cached for a week). This names the major reward tokens (AERO, AAVE, MORPHO and so on), so `--reward-token AERO` works. Tokens Merkl doesn't track, and non-EVM tokens (Solana, Sui, TON), stay as shortened addresses.
 
 To add a source (for example a points program, a perp DEX's trading-rewards API, or a chain foundation's incentive list), subclass `incentive_analyzer.sources.base.Source`, yield `Opportunity` objects from `fetch()`, and register the class in `sources/__init__.py`.
 
@@ -72,6 +72,8 @@ Types (`-t`): `lp`, `trading`, `lending`, `borrowing`, `collateral`, `staking`, 
 `trading` means rewards for swapping or buying (Merkl `SWAP` campaigns). Deposits into perp or DEX vaults (GLP/GLV/HLP style) count as `lp`, because you earn by supplying liquidity, not by trading.
 Sort keys: `score`, `reward_apr`, `total_apr`, `tvl`, `daily_rewards`.
 
+**TVL history.** The `tvl_drop` check needs each pool's TVL history from DefiLlama (`yields.llama.fi/chart/{pool}`), one small request per pool. It is fetched only for the rows a scan shows (the top `max(2 × limit, 50)` after filtering), and those rows are then re-ranked. Merkl-only rows have no history. Add `--no-history` to skip it; `summary` doesn't use it.
+
 API responses are cached in `~/.cache/incentive-analyzer` for 10 minutes. Change this with `--cache-ttl 0`, `--cache-dir`, or the `INCENTIVES_CACHE_DIR` environment variable.
 
 ## How results are computed
@@ -90,14 +92,15 @@ API responses are cached in `~/.cache/incentive-analyzer` for 10 minutes. Change
 | `apr_outlier` | Total over 500% or flagged as an outlier by DefiLlama |
 | `reward_dependent` | Over 90% of yield is incentives, so it disappears when the campaign ends |
 | `il_risk` | Impermanent-loss exposure |
-| `apr_spike` | Current APR is over 2× its 30-day mean |
+| `apr_spike` | Current APR is over 2× its usual level (and at least 5 points above it). "Usual" is the median of the 30-day mean, the APR 30 days ago and the all-time mean, so a pool whose 30-day mean is already inflated still gets caught |
+| `tvl_drop` | TVL fell 50% or more in 30 days. When liquidity leaves but emissions stay the same, the APR multiplies: a high APR here means an emptied pool, not a richer reward |
 | `net_negative` | Borrow rewards don't cover the interest |
 | `multi_source` | Merged from DefiLlama and Merkl, so the figures are cross-checked |
 | `reward_mismatch` | The two sources' reward APRs differ by more than 25%; the higher one is shown |
 | `unverified` | Merkl marks the campaign `[UNVERIFIED]` |
 | `stable` | Stablecoin market |
 
-**Score.** The score is meant to read as "APR you can trust". Its APR input is capped at 150% and weighted by market depth on a log scale ($1k TVL → 0.05×, $1M → 0.62×, $100M+ → 1×). It is also discounted by how far current APR is from its 30-day mean. Then each flag applies a multiplier: outlier 0.3, low TVL 0.5, unverified 0.5, IL 0.85, spike 0.8, net-negative 0. Volume campaigns with no APR score 2·log10(USD per day).
+**Score.** The score is meant to read as "APR you can trust". Its APR input is capped at 150% and weighted by market depth on a log scale ($1k TVL → 0.05×, $1M → 0.62×, $100M+ → 1×). It is also discounted by how far current APR is from its usual level (see `apr_spike`). Then each flag applies a multiplier: outlier 0.3, TVL drop 0.4, low TVL 0.5, unverified 0.5, IL 0.85, spike 0.8, net-negative 0. Volume campaigns with no APR score 2·log10(USD per day).
 
 ## Development
 

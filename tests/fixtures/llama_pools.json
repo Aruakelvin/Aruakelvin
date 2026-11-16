@@ -134,6 +134,30 @@
    "underlyingTokens": [
     "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"
    ]
+  },
+  {
+   "chain": "Base",
+   "project": "aerodrome-v1",
+   "symbol": "USDC-AERO",
+   "tvlUsd": 3638384,
+   "apyBase": null,
+   "apyReward": 248.85,
+   "apy": 248.85,
+   "apyPct30D": 215.82,
+   "mu": 30.5,
+   "apyMean30d": 184.41,
+   "rewardTokens": [
+    "0x940181a94A35A4569E4529A3CDfB74e38FD98631"
+   ],
+   "pool": "p-emptied",
+   "stablecoin": false,
+   "ilRisk": "yes",
+   "exposure": "multi",
+   "outlier": false,
+   "underlyingTokens": [
+    "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+    "0x940181a94A35A4569E4529A3CDfB74e38FD98631"
+   ]
   }
  ]
 }
