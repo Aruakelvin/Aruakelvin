@@ -72,7 +72,7 @@ Types (`-t`): `lp`, `trading`, `lending`, `borrowing`, `collateral`, `staking`, 
 `trading` means rewards for swapping or buying (Merkl `SWAP` campaigns). Deposits into perp or DEX vaults (GLP/GLV/HLP style) count as `lp`, because you earn by supplying liquidity, not by trading.
 Sort keys: `score`, `reward_apr`, `total_apr`, `tvl`, `daily_rewards`.
 
-**TVL history.** The `tvl_drop` check needs each pool's TVL history from DefiLlama (`yields.llama.fi/chart/{pool}`), one small request per pool. It is fetched only for the rows a scan shows (the top `max(2 × limit, 50)` after filtering), and those rows are then re-ranked. Merkl-only rows have no history. Add `--no-history` to skip it; `summary` doesn't use it.
+**TVL history.** The `tvl_drop` check needs each pool's TVL history from DefiLlama (`yields.llama.fi/chart/{pool}`), one small request per pool. It is fetched only for the rows a scan shows (the top `max(2 × limit, 50)` after filtering, capped at 300 rows; change the cap with `--history-limit`), and those rows are then re-ranked. So exporting every market with `-n 0` checks the top 300 and takes seconds, not minutes. `summary` (and the HTML report's by-chain table) checks each shown group's best market, re-checking until every group's best has passed, so "Best market" never names a pool that liquidity has left. Merkl-only rows have no history. Add `--no-history` to skip all of this.
 
 API responses are cached in `~/.cache/incentive-analyzer` for 10 minutes. Change this with `--cache-ttl 0`, `--cache-dir`, or the `INCENTIVES_CACHE_DIR` environment variable.
 

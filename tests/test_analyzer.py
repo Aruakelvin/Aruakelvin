@@ -331,6 +331,44 @@ class TokenNameTests(Base):
         self.assertFalse([u for u, _ in http.calls if u.endswith("/v4/tokens")])
 
 
+class HistoryScopeTests(Base):
+    merge = True
+
+    def test_summary_best_market_is_history_checked(self):
+        from incentive_analyzer.analyzer import summarize, summarize_with_history
+        base = lambda rows: next(r for r in rows if r["chain"] == "base")
+        # Without history the emptied pool looks like Base's best market...
+        self.assertIn("USDC-AERO", base(summarize(self.opps))["best_market"])
+        # ...with history it is flagged tvl_drop and loses the spot.
+        rows = summarize_with_history(Analyzer(self.http), self.opps)
+        self.assertNotIn("USDC-AERO", base(rows)["best_market"])
+        self.assertIn("tvl_drop", self.get("defillama", "p-emptied").flags)
+
+    def test_summary_checks_only_shown_groups_best_rows(self):
+        from incentive_analyzer.analyzer import summarize_with_history
+        rows = summarize_with_history(Analyzer(self.http), self.opps, by="chain")
+        charts = [u for u, _ in self.http.calls if "/chart/" in u]
+        self.assertIn("https://yields.llama.fi/chart/p-emptied", charts)
+        # a round or two per shown group, not one request per pool
+        self.assertLessEqual(len(charts), 2 * len(rows))
+        self.http.calls.clear()
+        summarize_with_history(Analyzer(self.http), self.opps, by="chain", top=1)
+        # the top group (Ethereum by USD/day) is led by a Merkl-only row: nothing to check
+        self.assertFalse([u for u, _ in self.http.calls if "/chart/" in u])
+
+    def test_history_limit_caps_requests(self):
+        rows = analyzer_mod.select_with_history(Analyzer(self.http), self.opps, history_limit=1)
+        self.assertEqual(len([u for u, _ in self.http.calls if "/chart/" in u]), 1)
+        self.assertEqual(len(rows), len(self.opps))
+
+    def test_rows_checked_once(self):
+        an = Analyzer(self.http)
+        o = self.get("defillama", "p-emptied")
+        an.add_history([o])
+        an.add_history([o])
+        self.assertEqual(len([u for u, _ in self.http.calls if "/chart/" in u]), 1)
+
+
 class CollateralTests(Base):
     def test_collateral_category(self):
         self.assertEqual(self.get("merkl", "m8").category, Category.COLLATERAL)

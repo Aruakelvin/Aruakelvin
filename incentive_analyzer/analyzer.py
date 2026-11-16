@@ -9,7 +9,7 @@ from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 
 from .http import HttpClient
-from .history import attach_history
+from .history import attach_history, llama_pool_id
 from .merge import merge_duplicates
 from .token_names import resolve_reward_token_names
 from .models import Category, Opportunity
@@ -94,6 +94,7 @@ class Analyzer:
         self.http = http or HttpClient()
         self.merge = merge
         self.name_tokens = name_tokens
+        self._history_checked: set[int] = set()
         names = list(sources) if sources else list(REGISTRY)
         unknown = [n for n in names if n not in REGISTRY]
         if unknown:
@@ -126,12 +127,20 @@ class Analyzer:
         return result
 
     def add_history(self, rows: list[Opportunity]) -> int:
-        """Fetch TVL history for ``rows`` and re-flag / re-score them."""
+        """Fetch TVL history for ``rows`` and re-flag / re-score them.
+
+        Rows already checked by this analyzer are skipped.
+        """
+        rows = [o for o in rows if id(o) not in self._history_checked]
+        self._history_checked.update(id(o) for o in rows)
         n = attach_history(rows, self.http)
         for o in rows:
             o.flags = risk_flags(o)
             o.score = score(o)
         return n
+
+    def history_checked(self, o: Opportunity) -> bool:
+        return id(o) in self._history_checked
 
     def scan(
         self, filters: Filters | None = None, sort: str = "score", limit: int | None = None,
@@ -144,21 +153,24 @@ class Analyzer:
 
 
 HISTORY_MIN_ROWS = 50
+HISTORY_MAX_ROWS = 300  # one request per row; keeps a full export to ~300 requests
 
 
 def select_with_history(
     analyzer: "Analyzer | None", opps: Iterable[Opportunity], filters: Filters | None = None,
-    sort: str = "score", limit: int | None = None,
+    sort: str = "score", limit: int | None = None, history_limit: int = HISTORY_MAX_ROWS,
 ) -> list[Opportunity]:
     """Like :func:`select`, but first checks TVL history for the rows that would
-    be shown (top ``max(limit * 2, 50)``) and re-ranks them.
+    be shown and re-ranks them.
 
+    The checked window is the top ``max(limit * 2, 50)`` rows, capped at
+    ``history_limit`` (so exporting every market doesn't fetch ~1,500 charts).
     History flags only ever lower a score, so rows below the checked window
     can't overtake checked rows unfairly.
     """
     rows = select(opps, filters, sort)
-    if analyzer is not None and rows:
-        window = max((limit or len(rows)) * 2, HISTORY_MIN_ROWS)
+    if analyzer is not None and rows and history_limit > 0:
+        window = min(max((limit or len(rows)) * 2, HISTORY_MIN_ROWS), history_limit)
         analyzer.add_history(rows[:window])
         rows.sort(key=SORT_KEYS[sort], reverse=True)
     return rows[:limit] if limit else rows
@@ -291,12 +303,46 @@ def resolve_token_symbols(opps: list[Opportunity]) -> None:
 
 
 # ---- aggregation -----------------------------------------------------------
+def _bucket_key(o: Opportunity, by: str) -> str:
+    return str(getattr(o, by).value if by == "category" else getattr(o, by))
+
+
+def summarize_with_history(
+    analyzer: "Analyzer | None", opps: Iterable[Opportunity], by: str = "chain", top: int = 25,
+    max_rounds: int = 25,
+) -> list[dict]:
+    """Like :func:`summarize`, but each shown group's "best market" has passed
+    the TVL-history check.
+
+    Repeats: find each group's best row; history-check the ones not yet
+    checked; re-score. Flags only lower scores, so once every group's best has
+    been checked (or has no history to check), it is the true best. Usually
+    takes 1-3 rounds of at most one request per group.
+    """
+    opps = list(opps)
+    if analyzer is None:
+        return summarize(opps, by, top)
+    # Group order (by USD/day) doesn't depend on history, so only shown groups need checking.
+    shown = {r[by] for r in summarize(opps, by, top)}
+    for _ in range(max_rounds):
+        best: dict[str, Opportunity] = {}
+        for o in opps:
+            k = _bucket_key(o, by)
+            if k in shown and (k not in best or o.score > best[k].score):
+                best[k] = o
+        pending = [o for o in best.values() if not analyzer.history_checked(o) and llama_pool_id(o)]
+        if not pending:
+            break
+        analyzer.add_history(pending)
+    return summarize(opps, by, top)
+
+
 def summarize(opps: Iterable[Opportunity], by: str = "chain", top: int = 25) -> list[dict]:
     if by not in {"chain", "protocol", "category", "source"}:
         raise ValueError("by must be one of chain, protocol, category, source")
     buckets: dict[str, dict] = {}
     for o in opps:
-        key = str(getattr(o, by).value if by == "category" else getattr(o, by))
+        key = _bucket_key(o, by)
         b = buckets.setdefault(key, {by: key, "markets": 0, "tvl_usd": 0.0, "daily_rewards_usd": 0.0,
                                      "_apr_w": 0.0, "_tvl_w": 0.0, "best": None})
         b["markets"] += 1

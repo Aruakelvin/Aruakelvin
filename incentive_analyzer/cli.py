@@ -9,7 +9,9 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from . import __version__, report
-from .analyzer import SORT_KEYS, Analyzer, Filters, select, select_with_history, summarize
+from .analyzer import (
+    HISTORY_MAX_ROWS, SORT_KEYS, Analyzer, Filters, select, select_with_history, summarize_with_history,
+)
 from .http import DEFAULT_CACHE_DIR, HttpClient
 from .models import Category
 from .sources import REGISTRY
@@ -39,6 +41,9 @@ def _common(p: argparse.ArgumentParser) -> None:
                    help="keep DefiLlama and Merkl rows for the same market separate")
     s.add_argument("--no-history", action="store_true",
                    help="skip the per-pool TVL history check (faster, but no tvl_drop flag)")
+    s.add_argument("--history-limit", type=int, default=HISTORY_MAX_ROWS,
+                   help=f"check TVL history for at most this many rows (default {HISTORY_MAX_ROWS}; "
+                        "one request each, cached)")
     s.add_argument("--cache-ttl", type=int, default=600, help="seconds to reuse cached API responses (0 disables)")
     s.add_argument("--cache-dir", type=Path, default=DEFAULT_CACHE_DIR)
     s.add_argument("--timeout", type=float, default=45.0)
@@ -113,11 +118,12 @@ def main(argv: list[str] | None = None) -> int:
     filters = _filters(args)
     if args.cmd == "summary":
         matched = select(collected.opportunities, filters)
-        print(report.summary_table(summarize(matched, by=args.by, top=args.limit), args.by))
+        history = None if args.no_history else analyzer
+        print(report.summary_table(summarize_with_history(history, matched, by=args.by, top=args.limit), args.by))
         return 0
 
     rows = select_with_history(None if args.no_history else analyzer, collected.opportunities,
-                               filters, args.sort, args.limit or None)
+                               filters, args.sort, args.limit or None, history_limit=args.history_limit)
     meta = {
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "sources": collected.source_counts,
@@ -134,7 +140,8 @@ def main(argv: list[str] | None = None) -> int:
         out = report.to_markdown(rows)
     else:
         all_matched = select(collected.opportunities, filters)
-        out = report.to_html(rows, summarize(all_matched, by="chain"), meta)
+        by_chain = summarize_with_history(None if args.no_history else analyzer, all_matched, by="chain")
+        out = report.to_html(rows, by_chain, meta)
 
     if args.output:
         args.output.parent.mkdir(parents=True, exist_ok=True)
