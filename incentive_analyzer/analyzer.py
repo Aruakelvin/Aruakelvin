@@ -11,6 +11,7 @@ from dataclasses import dataclass, field
 from .http import HttpClient
 from .history import attach_history
 from .merge import merge_duplicates
+from .token_names import resolve_reward_token_names
 from .models import Category, Opportunity
 from .normalize import canon_chain, canon_protocol
 from .sources import REGISTRY, Source
@@ -87,10 +88,12 @@ class Filters:
 
 class Analyzer:
     def __init__(
-        self, http: HttpClient | None = None, sources: Iterable[str] | None = None, merge: bool = True
+        self, http: HttpClient | None = None, sources: Iterable[str] | None = None, merge: bool = True,
+        name_tokens: bool = True,
     ) -> None:
         self.http = http or HttpClient()
         self.merge = merge
+        self.name_tokens = name_tokens
         names = list(sources) if sources else list(REGISTRY)
         unknown = [n for n in names if n not in REGISTRY]
         if unknown:
@@ -116,6 +119,9 @@ class Analyzer:
                 result.source_counts[name] = len(opps or [])
                 result.opportunities.extend(opps or [])
 
+        if self.name_tokens:
+            resolve_token_symbols(result.opportunities)  # free: symbols Merkl already reported
+            resolve_reward_token_names(result.opportunities, self.http)
         result.opportunities = enrich(result.opportunities, merge=self.merge)
         return result
 

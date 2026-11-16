@@ -19,7 +19,7 @@ The merged row keeps DefiLlama's base APY, 30-day mean and risk data, and takes 
 
 In a live run on 2026-11-15, a full scan took about 3 seconds and returned **2,057 incentivized markets** (DefiLlama 1,477 + Merkl 580) on more than 20 chains, worth about $4.6M/day in rewards.
 
-DefiLlama reports reward tokens as contract addresses. Where Merkl knows the same token on the same chain, the address is replaced with its symbol.
+DefiLlama reports reward tokens as contract addresses. The analyzer names them in two steps: first with symbols Merkl already reported for the same token on the same chain, then by looking each remaining EVM address up in Merkl's token list (`api.merkl.xyz/v4/tokens`, cached for a week). This names the major reward tokens (AERO, AAVE, MORPHO and so on), so `--reward-token AERO` works. Tokens Merkl doesn't track, and non-EVM tokens (Solana, Sui, TON), stay as shortened addresses.
 
 To add a source (for example a points program, a perp DEX's trading-rewards API, or a chain foundation's incentive list), subclass `incentive_analyzer.sources.base.Source`, yield `Opportunity` objects from `fetch()`, and register the class in `sources/__init__.py`.
 

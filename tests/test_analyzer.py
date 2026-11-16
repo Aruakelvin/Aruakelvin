@@ -25,7 +25,7 @@ class FakeHttp:
         self.fail = fail
         self.calls = []
 
-    def get_json(self, url, params=None):
+    def get_json(self, url, params=None, ttl=None):
         self.calls.append((url, params))
         if any(f in url for f in self.fail):
             raise HttpError(f"simulated failure for {url}")
@@ -34,6 +34,11 @@ class FakeHttp:
             if not f.exists():
                 raise HttpError(f"no chart fixture for {url}")
             return json.loads(f.read_text())
+        if url.endswith("/v4/tokens"):
+            known = {(8453, "0x940181a94a35a4569e4529a3cdfb74e38fd98631"): "AERO",
+                     (1, "0x7fc66500c84a76ad7e9c93437bfc5ac33e2ddae9"): "AAVE"}
+            sym = known.get(((params or {}).get("chainId"), (params or {}).get("address")))
+            return [{"address": params["address"], "symbol": sym}] if sym else []
         if url.endswith("/pools"):
             return json.loads((FIX / "llama_pools.json").read_text())
         if url.endswith("/lendBorrow"):
@@ -72,7 +77,7 @@ class CollectTests(Base):
         self.assertEqual(self.result.source_counts, {"defillama": 9, "merkl": 8})
 
     def test_merkl_pagination(self):
-        pages = [p["page"] for u, p in self.http.calls if "merkl" in u]
+        pages = [p["page"] for u, p in self.http.calls if u.endswith("/v4/opportunities")]
         self.assertEqual(pages, [0, 1, 2])
 
     def test_categories(self):
@@ -122,8 +127,9 @@ class CollectTests(Base):
     def test_reward_symbols_resolved_across_sources(self):
         aero = self.get("defillama", "p-aero-weth-usdc")
         self.assertEqual(aero.reward_tokens[0].symbol, "AERO")
-        # same address on another chain must not be relabelled
-        self.assertTrue(self.get("defillama", "p-aave-usdc").reward_tokens[0].symbol.startswith("0x"))
+        # a symbol Merkl knows on Base must not leak to another chain: Aave's
+        # Ethereum reward token is named by its own (Ethereum) lookup instead
+        self.assertEqual(self.get("defillama", "p-aave-usdc").reward_tokens[0].symbol, "AAVE")
         self.assertNotIn("token_addresses", self.get("merkl", "m1").to_dict())
 
     def test_daily_rewards(self):
@@ -305,6 +311,24 @@ class HistoryTests(Base):
         self.assertLess(ids.index("p-aero-weth-usdc"), ids.index("p-emptied"))
         charts = [u for u, _ in self.http.calls if "/chart/" in u]
         self.assertIn("https://yields.llama.fi/chart/p-emptied", charts)
+
+
+class TokenNameTests(Base):
+    def test_address_only_reward_tokens_named(self):
+        self.assertEqual([r.symbol for r in self.get("defillama", "p-aave-usdc").reward_tokens], ["AAVE"])
+        self.assertEqual([r.symbol for r in self.get("defillama", "p-emptied").reward_tokens], ["AERO"])
+        self.assertIn("p-emptied", {o.source_id for o in select(self.opps, Filters(reward_token="AERO"))})
+
+    def test_unknown_and_non_evm_left_alone(self):
+        degen = self.get("defillama", "p-degen")  # Merkl doesn't know this token
+        self.assertTrue(degen.reward_tokens[0].symbol.startswith("0x"))
+        looked_up = [p for u, p in self.http.calls if u.endswith("/v4/tokens")]
+        self.assertTrue(all(p["address"].startswith("0x") for p in looked_up))
+
+    def test_lookup_can_be_disabled(self):
+        http = FakeHttp()
+        Analyzer(http, name_tokens=False).collect()
+        self.assertFalse([u for u, _ in http.calls if u.endswith("/v4/tokens")])
 
 
 class CollateralTests(Base):
