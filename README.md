@@ -72,6 +72,8 @@ Types (`-t`): `lp`, `trading`, `lending`, `borrowing`, `collateral`, `staking`, 
 `trading` means rewards for swapping or buying (Merkl `SWAP` campaigns). Deposits into perp or DEX vaults (GLP/GLV/HLP style) count as `lp`, because you earn by supplying liquidity, not by trading.
 Sort keys: `score`, `reward_apr`, `total_apr`, `tvl`, `daily_rewards`.
 
+**TVL history.** The `tvl_drop` check needs each pool's TVL history from DefiLlama (`yields.llama.fi/chart/{pool}`), one small request per pool. It is fetched only for the rows a scan shows (the top `max(2 × limit, 50)` after filtering), and those rows are then re-ranked. Merkl-only rows have no history. Add `--no-history` to skip it; `summary` doesn't use it.
+
 API responses are cached in `~/.cache/incentive-analyzer` for 10 minutes. Change this with `--cache-ttl 0`, `--cache-dir`, or the `INCENTIVES_CACHE_DIR` environment variable.
 
 ## How results are computed
@@ -90,14 +92,15 @@ API responses are cached in `~/.cache/incentive-analyzer` for 10 minutes. Change
 | `apr_outlier` | Total over 500% or flagged as an outlier by DefiLlama |
 | `reward_dependent` | Over 90% of yield is incentives, so it disappears when the campaign ends |
 | `il_risk` | Impermanent-loss exposure |
-| `apr_spike` | Current APR is over 2× its 30-day mean |
+| `apr_spike` | Current APR is over 2× its usual level (and at least 5 points above it). "Usual" is the median of the 30-day mean, the APR 30 days ago and the all-time mean, so a pool whose 30-day mean is already inflated still gets caught |
+| `tvl_drop` | TVL fell 50% or more in 30 days. When liquidity leaves but emissions stay the same, the APR multiplies: a high APR here means an emptied pool, not a richer reward |
 | `net_negative` | Borrow rewards don't cover the interest |
 | `multi_source` | Merged from DefiLlama and Merkl, so the figures are cross-checked |
 | `reward_mismatch` | The two sources' reward APRs differ by more than 25%; the higher one is shown |
 | `unverified` | Merkl marks the campaign `[UNVERIFIED]` |
 | `stable` | Stablecoin market |
 
-**Score.** The score is meant to read as "APR you can trust". Its APR input is capped at 150% and weighted by market depth on a log scale ($1k TVL → 0.05×, $1M → 0.62×, $100M+ → 1×). It is also discounted by how far current APR is from its 30-day mean. Then each flag applies a multiplier: outlier 0.3, low TVL 0.5, unverified 0.5, IL 0.85, spike 0.8, net-negative 0. Volume campaigns with no APR score 2·log10(USD per day).
+**Score.** The score is meant to read as "APR you can trust". Its APR input is capped at 150% and weighted by market depth on a log scale ($1k TVL → 0.05×, $1M → 0.62×, $100M+ → 1×). It is also discounted by how far current APR is from its usual level (see `apr_spike`). Then each flag applies a multiplier: outlier 0.3, TVL drop 0.4, low TVL 0.5, unverified 0.5, IL 0.85, spike 0.8, net-negative 0. Volume campaigns with no APR score 2·log10(USD per day).
 
 ## Development
 

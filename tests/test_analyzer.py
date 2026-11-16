@@ -12,6 +12,7 @@ from incentive_analyzer.analyzer import Analyzer, Filters, select, summarize
 from incentive_analyzer.http import HttpError
 from incentive_analyzer.models import Category
 from incentive_analyzer.sources import merkl as merkl_mod
+from incentive_analyzer import analyzer as analyzer_mod
 from incentive_analyzer import report
 
 FIX = Path(__file__).parent / "fixtures"
@@ -28,6 +29,11 @@ class FakeHttp:
         self.calls.append((url, params))
         if any(f in url for f in self.fail):
             raise HttpError(f"simulated failure for {url}")
+        if "/chart/" in url:
+            f = FIX / f"chart_{url.rsplit('/', 1)[1]}.json"
+            if not f.exists():
+                raise HttpError(f"no chart fixture for {url}")
+            return json.loads(f.read_text())
         if url.endswith("/pools"):
             return json.loads((FIX / "llama_pools.json").read_text())
         if url.endswith("/lendBorrow"):
@@ -63,7 +69,7 @@ class CollectTests(Base):
         self.assertNotIn("p-lido", ids)          # apyReward 0
         self.assertNotIn("p-aave-weth", ids)     # apyReward null (supply side)
         self.assertNotIn("m5", ids)              # dead merkl campaign
-        self.assertEqual(self.result.source_counts, {"defillama": 8, "merkl": 8})
+        self.assertEqual(self.result.source_counts, {"defillama": 9, "merkl": 8})
 
     def test_merkl_pagination(self):
         pages = [p["page"] for u, p in self.http.calls if "merkl" in u]
@@ -133,7 +139,7 @@ class CollectTests(Base):
     def test_source_failure_is_isolated(self):
         res = Analyzer(FakeHttp(fail={"merkl"})).collect()
         self.assertIn("merkl", res.errors)
-        self.assertEqual(res.source_counts, {"defillama": 8})
+        self.assertEqual(res.source_counts, {"defillama": 9})
 
     def test_unknown_source(self):
         with self.assertRaises(ValueError):
@@ -148,19 +154,20 @@ class FilterTests(Base):
         self.assertEqual(self.ids(chains=["BNB Chain"]), {"p-degen"})
 
     def test_category_and_tvl(self):
-        self.assertEqual(self.ids(categories=[Category.LP], min_tvl=1e6), {"p-aero-weth-usdc", "m1", "p-gmx"})
+        self.assertEqual(self.ids(categories=[Category.LP], min_tvl=1e6), {"p-aero-weth-usdc", "m1", "p-gmx", "p-emptied"})
         lending = self.ids(categories=[Category.LENDING])
         self.assertNotIn("m8", lending)  # collateral deposit is not lending
 
     def test_token_matches_reward_tokens(self):
-        # --token is the deposited asset; rewards paid in AERO don't count
-        self.assertEqual(self.ids(token="aero"), set())
-        self.assertEqual(self.ids(reward_token="aero"), {"m1", "p-aero-weth-usdc"})
+        # --token is the deposited asset: only USDC-AERO deposits AERO; the
+        # WETH-USDC pools are merely paid in it
+        self.assertEqual(self.ids(token="aero"), {"p-emptied"})
+        self.assertEqual(self.ids(reward_token="aero"), {"m1", "p-aero-weth-usdc", "p-emptied"})
         self.assertEqual(self.ids(token="weth", reward_token="aero"), {"m1", "p-aero-weth-usdc"})
         self.assertIn("m2", self.ids(token="usdc"))
 
     def test_protocol_family_prefix(self):
-        self.assertEqual(self.ids(protocols=["aerodrome"]), {"p-aero-weth-usdc", "m1"})
+        self.assertEqual(self.ids(protocols=["aerodrome"]), {"p-aero-weth-usdc", "m1", "p-emptied"})
 
     def test_safe_and_stable(self):
         safe = self.ids(exclude_flags=("apr_outlier", "low_tvl", "net_negative"))
@@ -170,12 +177,12 @@ class FilterTests(Base):
 
     def test_sort_and_limit(self):
         top = select(self.opps, Filters(), sort="reward_apr", limit=2)
-        self.assertEqual([o.source_id for o in top], ["p-degen", "p-aero-weth-usdc"])
+        self.assertEqual([o.source_id for o in top], ["p-degen", "p-emptied"])
 
     def test_summary(self):
         rows = summarize(self.opps, by="chain")
         base = next(r for r in rows if r["chain"] == "base")
-        self.assertEqual(base["markets"], 7)
+        self.assertEqual(base["markets"], 8)
         self.assertEqual(rows, sorted(rows, key=lambda r: r["daily_rewards_usd"], reverse=True))
 
 
@@ -250,6 +257,56 @@ class MergeTests(Base):
         self.assertEqual(len(collapse_identical([dust, dust2])), 2)
 
 
+class HistoryTests(Base):
+    """The USDC-AERO case: APR up ~8x because 92% of the liquidity left."""
+
+    def test_apr_spike_without_history(self):
+        o = self.get("defillama", "p-emptied")
+        # 30d mean (184%) is already inflated; median of (184, 33, 30.5) = 33 still sees the spike
+        self.assertAlmostEqual(analyzer_mod.baseline_apr(o), 33.03, places=2)
+        self.assertIn("apr_spike", o.flags)
+        self.assertNotIn("tvl_drop", o.flags)  # needs history
+
+    def test_tvl_drop_after_history(self):
+        o = self.get("defillama", "p-emptied")
+        healthy = self.get("defillama", "p-aero-weth-usdc")
+        before = o.score
+        an = Analyzer(self.http)
+        self.assertEqual(an.add_history([o, healthy]), 2)
+        self.assertAlmostEqual(o.extra["tvl_change_30d"], 3.64e6 / 44e6 - 1, places=3)
+        self.assertIn("tvl_drop", o.flags)
+        self.assertAlmostEqual(o.score, before * 0.4, places=3)
+        self.assertNotIn("tvl_drop", healthy.flags)
+        self.assertGreater(healthy.score, o.score)
+
+    def test_missing_history_is_harmless(self):
+        o = self.get("defillama", "p-aave-usdc")
+        before = (list(o.flags), o.score)
+        self.assertEqual(Analyzer(self.http).add_history([o]), 0)
+        self.assertEqual((o.flags, o.score), before)
+
+    def test_merged_and_merkl_rows(self):
+        from incentive_analyzer.history import llama_pool_id
+        merged = next(o for o in Analyzer(FakeHttp()).collect().opportunities if o.source == "defillama+merkl")
+        self.assertTrue(llama_pool_id(merged))
+        self.assertIsNone(llama_pool_id(self.get("merkl", "m2")))
+        self.assertIsNone(llama_pool_id(self.get("defillama", "p-aave-weth:borrow")))
+
+    def test_young_pool_has_no_change(self):
+        from incentive_analyzer.history import tvl_change
+        pts = [{"timestamp": "2026-11-10T00:00:00.000Z", "tvlUsd": 1},
+               {"timestamp": "2026-11-16T00:00:00.000Z", "tvlUsd": 5}]
+        self.assertEqual(tvl_change(pts), (None, None))
+
+    def test_select_with_history_reranks(self):
+        an = Analyzer(self.http)
+        rows = analyzer_mod.select_with_history(an, self.opps, Filters(chains=["base"], categories=[Category.LP]))
+        ids = [o.source_id for o in rows]
+        self.assertLess(ids.index("p-aero-weth-usdc"), ids.index("p-emptied"))
+        charts = [u for u, _ in self.http.calls if "/chart/" in u]
+        self.assertIn("https://yields.llama.fi/chart/p-emptied", charts)
+
+
 class CollateralTests(Base):
     def test_collateral_category(self):
         self.assertEqual(self.get("merkl", "m8").category, Category.COLLATERAL)
@@ -308,6 +365,17 @@ class CliTests(unittest.TestCase):
         finally:
             cli.HttpClient = orig
         return code, out.getvalue(), err.getvalue()
+
+    def test_no_history_skips_chart_requests(self):
+        http = FakeHttp()
+        orig = cli.HttpClient
+        cli.HttpClient = lambda **kw: http
+        try:
+            with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+                cli.main(["scan", "--no-history"])
+        finally:
+            cli.HttpClient = orig
+        self.assertFalse([u for u, _ in http.calls if "/chart/" in u])
 
     def test_scan_json(self):
         code, out, _ = self.run_cli("scan", "-t", "lp", "--min-tvl", "1000000", "-f", "json")

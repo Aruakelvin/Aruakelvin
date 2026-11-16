@@ -9,6 +9,7 @@ from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 
 from .http import HttpClient
+from .history import attach_history
 from .merge import merge_duplicates
 from .models import Category, Opportunity
 from .normalize import canon_chain, canon_protocol
@@ -20,7 +21,9 @@ log = logging.getLogger(__name__)
 LOW_TVL_USD = 100_000
 APR_OUTLIER = 500.0        # % total APR beyond which numbers are rarely real/sustainable
 REWARD_DEPENDENT = 0.90    # >90% of yield is incentives
-SPIKE_RATIO = 2.0          # current APR > 2x 30d mean
+SPIKE_RATIO = 2.0          # current APR > 2x its usual level...
+SPIKE_MIN_PP = 5.0         # ...and at least 5 percentage points above it
+TVL_DROP = -0.5            # TVL down 50%+ in 30 days
 SCORE_APR_CAP = 150.0      # cap APR's contribution to the score
 
 
@@ -116,10 +119,43 @@ class Analyzer:
         result.opportunities = enrich(result.opportunities, merge=self.merge)
         return result
 
-    def scan(self, filters: Filters | None = None, sort: str = "score", limit: int | None = None) -> ScanResult:
+    def add_history(self, rows: list[Opportunity]) -> int:
+        """Fetch TVL history for ``rows`` and re-flag / re-score them."""
+        n = attach_history(rows, self.http)
+        for o in rows:
+            o.flags = risk_flags(o)
+            o.score = score(o)
+        return n
+
+    def scan(
+        self, filters: Filters | None = None, sort: str = "score", limit: int | None = None,
+        history: bool = True,
+    ) -> ScanResult:
         result = self.collect()
-        result.opportunities = select(result.opportunities, filters, sort, limit)
+        result.opportunities = select_with_history(
+            self if history else None, result.opportunities, filters, sort, limit)
         return result
+
+
+HISTORY_MIN_ROWS = 50
+
+
+def select_with_history(
+    analyzer: "Analyzer | None", opps: Iterable[Opportunity], filters: Filters | None = None,
+    sort: str = "score", limit: int | None = None,
+) -> list[Opportunity]:
+    """Like :func:`select`, but first checks TVL history for the rows that would
+    be shown (top ``max(limit * 2, 50)``) and re-ranks them.
+
+    History flags only ever lower a score, so rows below the checked window
+    can't overtake checked rows unfairly.
+    """
+    rows = select(opps, filters, sort)
+    if analyzer is not None and rows:
+        window = max((limit or len(rows)) * 2, HISTORY_MIN_ROWS)
+        analyzer.add_history(rows[:window])
+        rows.sort(key=SORT_KEYS[sort], reverse=True)
+    return rows[:limit] if limit else rows
 
 
 # ---- pure functions (easy to test) -----------------------------------------
@@ -168,8 +204,12 @@ def risk_flags(o: Opportunity) -> list[str]:
         flags.append("reward_dependent")
     if o.il_risk:
         flags.append("il_risk")
-    if o.apr_30d_mean and o.apr_30d_mean > 0 and o.total_apr > SPIKE_RATIO * o.apr_30d_mean:
+    usual = baseline_apr(o)
+    if usual is not None and o.total_apr > SPIKE_RATIO * usual and o.total_apr - usual >= SPIKE_MIN_PP:
         flags.append("apr_spike")
+    change = o.extra.get("tvl_change_30d")
+    if change is not None and change <= TVL_DROP:
+        flags.append("tvl_drop")
     if o.category == Category.BORROWING and o.total_apr <= 0:
         flags.append("net_negative")
     if "+" in o.source:
@@ -183,12 +223,28 @@ def risk_flags(o: Opportunity) -> list[str]:
     return flags
 
 
+def baseline_apr(o: Opportunity) -> float | None:
+    """The market's usual APR: the median of its 30-day mean, its APR 30 days
+    ago and its all-history mean (whichever the source provides).
+
+    The median resists one distorted reference: after a pool empties, its
+    30-day mean is already inflated, but the other two still show the old level.
+    """
+    refs = sorted(v for v in (o.apr_30d_mean, o.extra.get("apr_30d_ago"), o.extra.get("apr_hist_mean"))
+                  if v is not None and v > 0)
+    if not refs:
+        return None
+    mid = len(refs) // 2
+    return refs[mid] if len(refs) % 2 else (refs[mid - 1] + refs[mid]) / 2
+
+
 def score(o: Opportunity) -> float:
     """Risk-adjusted attractiveness, roughly 'APR you can trust'.
 
     * APR contribution is capped so absurd numbers do not dominate.
     * Depth: $1k TVL -> 0.05x weight, $1M -> 0.62x, $100M+ -> 1.0x (log scale).
-    * Stability: penalize when current APR is far from its 30d mean.
+    * Stability: penalize when current APR is far from its usual level
+      (see :func:`baseline_apr`).
     * Flags apply multiplicative haircuts.
     * Campaigns with no APR (pure volume/trading rewards) score on log10 of
       USD emitted per day, so a $10k/day pool scores ~8.
@@ -200,12 +256,13 @@ def score(o: Opportunity) -> float:
     depth = min(1.0, max(0.0, (math.log10(tvl) - 3.0) / 5.0))
     s = apr * (0.05 + 0.95 * depth)
 
-    if o.apr_30d_mean and o.apr_30d_mean > 0 and o.total_apr > 0:
-        ratio = min(o.total_apr, o.apr_30d_mean) / max(o.total_apr, o.apr_30d_mean)
+    usual = baseline_apr(o)
+    if usual and o.total_apr > 0:
+        ratio = min(o.total_apr, usual) / max(o.total_apr, usual)
         s *= 0.5 + 0.5 * ratio
 
     haircut = {"apr_outlier": 0.3, "low_tvl": 0.5, "il_risk": 0.85, "apr_spike": 0.8,
-               "unverified": 0.5, "net_negative": 0.0}
+               "tvl_drop": 0.4, "unverified": 0.5, "net_negative": 0.0}
     for f in o.flags:
         s *= haircut.get(f, 1.0)
     return round(s, 4)
