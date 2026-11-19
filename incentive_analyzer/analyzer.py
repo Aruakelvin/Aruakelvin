@@ -215,9 +215,35 @@ def enrich(opps: list[Opportunity], merge: bool = True) -> list[Opportunity]:
     if merge:
         opps = merge_duplicates(opps)
     for o in opps:
+        check_daily_rewards(o)
         o.flags = risk_flags(o)
         o.score = score(o)
     return opps
+
+
+# A reported USD/day this many times above TVL x reward APR (and at least this
+# many dollars above it) is treated as a source error, e.g. a mispriced token.
+DAILY_REWARDS_MAX_RATIO = 20
+DAILY_REWARDS_MIN_EXCESS_USD = 1000
+
+
+def check_daily_rewards(o: Opportunity) -> None:
+    """Drop a reported rewards-per-day figure that contradicts the row's own
+    TVL and reward APR, so it can't distort rankings or totals.
+
+    Live example: Merkl reported $97.9M/day for two Panoptic vaults holding
+    $1.2M at 2-43% APR (implied: $70-1,400/day). The reported value is kept in
+    ``extra['daily_rewards_reported']`` and the row is flagged ``suspect_data``;
+    ``est_daily_rewards_usd`` then falls back to TVL x APR.
+    """
+    reported = o.daily_rewards_usd
+    if not reported or not o.tvl_usd or not o.reward_apr or o.reward_apr <= 0:
+        return
+    implied = o.tvl_usd * o.reward_apr / 100 / 365
+    if reported > DAILY_REWARDS_MAX_RATIO * implied and reported - implied > DAILY_REWARDS_MIN_EXCESS_USD:
+        o.extra["daily_rewards_reported"] = reported
+        o.extra["suspect_data"] = True
+        o.daily_rewards_usd = None
 
 
 def risk_flags(o: Opportunity) -> list[str]:
@@ -245,6 +271,8 @@ def risk_flags(o: Opportunity) -> list[str]:
         flags.append("multi_source")
     if o.extra.get("reward_mismatch"):
         flags.append("reward_mismatch")
+    if o.extra.get("suspect_data"):
+        flags.append("suspect_data")
     if o.extra.get("unverified"):
         flags.append("unverified")
     if o.extra.get("base_apr_estimated"):
@@ -301,6 +329,7 @@ def score(o: Opportunity) -> float:
         s *= 0.5 + 0.5 * ratio
 
     haircut = {"apr_outlier": 0.3, "low_tvl": 0.5, "il_risk": 0.85, "apr_spike": 0.8, "ending_soon": 0.75,
+               "suspect_data": 0.5,
                "tvl_drop": 0.4, "unverified": 0.5, "net_negative": 0.0}
     for f in o.flags:
         s *= haircut.get(f, 1.0)
