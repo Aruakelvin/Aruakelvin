@@ -541,6 +541,43 @@ class FeeEstimateTests(Base):
         self.assertFalse([u for u, _ in self.http.calls if "geckoterminal" in u])
 
 
+class DailyRewardsCheckTests(Base):
+    def row(self, tvl, apr, daily):
+        o = copy.deepcopy(self.get("merkl", "m2"))
+        o.tvl_usd, o.reward_apr, o.daily_rewards_usd = tvl, apr, daily
+        o.extra.pop("suspect_data", None)
+        analyzer_mod.check_daily_rewards(o)
+        o.flags = analyzer_mod.risk_flags(o)
+        return o
+
+    def test_panoptic_case_rejected(self):
+        # live 2026-11-19: Merkl reported $97.9M/day for a $1.2M vault at 42.8% APR
+        o = self.row(1_226_457, 42.8, 97_853_342.3)
+        self.assertIn("suspect_data", o.flags)
+        self.assertEqual(o.extra["daily_rewards_reported"], 97_853_342.3)
+        self.assertAlmostEqual(o.est_daily_rewards_usd, 1_226_457 * 0.428 / 365, places=2)
+
+    def test_consistent_figures_kept(self):
+        o = self.row(95_000_000, 3.8, 9_900)      # m2's real numbers: implied ~$9.9K/day
+        self.assertNotIn("suspect_data", o.flags)
+        self.assertEqual(o.est_daily_rewards_usd, 9_900)
+        o = self.row(1_000_000, 10, 2_000)        # 7x implied: plausible (e.g. partial-day TVL)
+        self.assertNotIn("suspect_data", o.flags)
+
+    def test_small_absolute_gaps_ignored(self):
+        o = self.row(10_000, 1, 500)              # 1,800x ratio but only ~$500/day: not worth flagging
+        self.assertNotIn("suspect_data", o.flags)
+
+    def test_missing_inputs_skip_check(self):
+        for tvl, apr in ((None, 5), (1e6, None), (1e6, 0)):
+            self.assertNotIn("suspect_data", self.row(tvl, apr, 1e9).flags)
+
+    def test_totals_not_distorted(self):
+        bad = self.row(1_226_457, 42.8, 97_853_342.3)
+        total = sum(r["daily_rewards_usd"] for r in summarize([bad]))
+        self.assertLess(total, 2_000)
+
+
 class CollateralTests(Base):
     def test_collateral_category(self):
         self.assertEqual(self.get("merkl", "m8").category, Category.COLLATERAL)

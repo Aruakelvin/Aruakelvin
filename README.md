@@ -101,6 +101,7 @@ API responses are cached in `~/.cache/incentive-analyzer` for 10 minutes. Change
 | `net_negative` | Borrow rewards don't cover the interest |
 | `multi_source` | Merged from DefiLlama and Merkl, so the figures are cross-checked |
 | `reward_mismatch` | The two sources' reward APRs differ by more than 25%; the higher one is shown |
+| `suspect_data` | The source's rewards-per-day figure is more than 20× what the row's TVL × reward APR implies (and over $1,000/day above it), e.g. a mispriced token. The reported figure is ignored (kept in `extra.daily_rewards_reported`), Rewards/day falls back to TVL × APR, and the score is halved because the APR may be wrong too |
 | `unverified` | Merkl marks the campaign `[UNVERIFIED]` |
 | `ending_soon` | The reward campaign ends within 7 days, and its history was checked and shows no back-to-back renewal (see below) |
 | `fee_estimated` | Base% is an estimate from GeckoTerminal volume and fee tier (shown with `~`) |

@@ -197,7 +197,7 @@ const usd=v=>v==null?'-':Math.abs(v)>=1e9?'$'+(v/1e9).toFixed(2)+'B':Math.abs(v)
 const pc=v=>v==null?'-':v.toFixed(2);const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 let sk='score',sd=-1;
 for(const [id,k] of [['#chain','chain'],['#cat','category']]){[...new Set(D.map(o=>o[k]))].sort().forEach(v=>$(id).insertAdjacentHTML('beforeend',`<option>${esc(v)}</option>`))}
-const risky=new Set(['apr_outlier','low_tvl','net_negative','tvl_drop','ending_soon']);
+const risky=new Set(['apr_outlier','low_tvl','net_negative','tvl_drop','ending_soon','suspect_data']);
 function render(){const q=$('#q').value.toLowerCase(),c=$('#chain').value,t=$('#cat').value,m=+$('#tvl').value||0,s=$('#safe').checked;
 const rows=D.filter(o=>(!c||o.chain===c)&&(!t||o.category===t)&&(o.tvl_usd||0)>=m&&(!s||!o.flags.some(f=>risky.has(f)))&&
 (!q||[o.market,o.protocol,o.chain,...o.tokens,...o.reward_tokens.map(r=>r.symbol)].join(' ').toLowerCase().includes(q)))
