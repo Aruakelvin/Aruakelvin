@@ -10,8 +10,9 @@ Team names follow model.norm(): no trailing "FC"/"AFC".
 # Bundesliga ends 2026-09-20, 2. Bundesliga ends 2025-11-02;
 # Ligue 1 ends 2026-09-20, Ligue 2 ends 2025-11-03;
 # Eredivisie ends 2026-09-20, no Eerste Divisie data;
-# Belgian Pro League ends 2025-11-02, nothing from 2026-27. League One/Two end 2025-12-29), so lean on the market.
-MARKET_WEIGHT = {"PL": 0.7, "CH": 0.7, "L1": 0.85, "LL": 0.7, "LL2": 0.9, "SA": 0.7, "BL": 0.7, "FR": 0.7, "NL": 0.7, "BE": 0.85}
+# Belgian Pro League ends 2025-11-02, nothing from 2026-27;
+# Turkish Super Lig ends 2025-11-03, nothing from 2026-27. League One/Two end 2025-12-29), so lean on the market.
+MARKET_WEIGHT = {"PL": 0.7, "CH": 0.7, "L1": 0.85, "LL": 0.7, "LL2": 0.9, "SA": 0.7, "BL": 0.7, "FR": 0.7, "NL": 0.7, "BE": 0.85, "TR": 0.85}
 
 FIXTURES = {
     "PL": [  # 21-22 Nov 2026
@@ -130,5 +131,14 @@ FIXTURES = {
         {"when": "Sun 16:00", "home": "KV Kortrijk", "away": "Union Saint-Gilloise", "odds": (7.20, 4.90, 1.40)},
         {"when": "Sun 18:30", "home": "RSC Anderlecht", "away": "Oud-Heverlee Leuven", "odds": (1.47, 4.60, 6.10)},
         {"when": "Sun 19:15", "home": "Lommel SK", "away": "Standard Liège", "odds": (3.20, 3.60, 2.12)},
+    ],
+    "TR": [  # Sat 21 - Sun 22 Nov 2026
+        {"when": "Sat 11:30", "home": "Gençlerbirliği", "away": "Gaziantep FK", "odds": (2.36, 3.55, 2.90)},
+        {"when": "Sat 14:00", "home": "Galatasaray", "away": "Samsunspor", "odds": (1.26, 6.50, 9.90)},
+        {"when": "Sat 14:00", "home": "Amedspor", "away": "Çaykur Rizespor", "odds": (1.70, 4.20, 4.50)},
+        {"when": "Sat 17:00", "home": "Kocaelispor", "away": "Fenerbahçe", "odds": (5.60, 4.40, 1.55)},
+        {"when": "Sun 11:30", "home": "Erzurumspor", "away": "Göztepe", "odds": (2.94, 3.35, 2.44)},
+        {"when": "Sun 14:00", "home": "Kasımpaşa SK", "away": "Alanyaspor", "odds": (1.98, 3.55, 3.75)},
+        {"when": "Sun 14:00", "home": "Konyaspor", "away": "Beşiktaş", "odds": (5.20, 4.15, 1.62)},
     ],
 }
