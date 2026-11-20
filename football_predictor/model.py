@@ -1,7 +1,7 @@
 """Dixon-Coles football model with time decay, blended with bookmaker odds.
 
 Usage:
-    python -m football_predictor.model --data DIR [--league PL|CH|L1|LL] [--asof 2026-11-20] [--backtest]
+    python -m football_predictor.model --data DIR [--league PL|CH|L1|LL|LL2] [--asof 2026-11-20] [--backtest]
 
 DIR holds openfootball JSON files (en1_*.json = Premier League,
 en2_*.json = Championship, en3_*.json = League One,
@@ -38,7 +38,7 @@ class Match:
 
 
 LEAGUE_FILES = {"en1": "PL", "en2": "CH", "en3": "L1", "en4": "L2", "es1": "LL", "es2": "LL2"}
-COUNTRY = {"PL": "en", "CH": "en", "L1": "en", "LL": "es"}
+COUNTRY = {"PL": "en", "CH": "en", "L1": "en", "LL": "es", "LL2": "es"}
 
 # Same club, different spelling between files (after norm()).
 ALIASES = {
@@ -204,6 +204,12 @@ def main():
     print(f"Blend: {MARKET_WEIGHT[args.league]:.0%} bookmaker odds, {1 - MARKET_WEIGHT[args.league]:.0%} model")
     print(f"Home advantage x{math.exp(model.home_adv):.2f}, rho {model.rho:.3f}\n")
     for f in FIXTURES[args.league]:
+        unknown = [t for t in (f["home"], f["away"]) if t not in model.idx]
+        if unknown:
+            mkt = devig(f["odds"])
+            print(f"{f['home']} v {f['away']}  ({f['when']})  no data for {', '.join(unknown)}")
+            print("   market only  1 {:.0%}  X {:.0%}  2 {:.0%}".format(*mkt))
+            continue
         mat = model.score_matrix(f["home"], f["away"])
         mk = markets(mat)
         lam, mu = model.expected_goals(f["home"], f["away"])
