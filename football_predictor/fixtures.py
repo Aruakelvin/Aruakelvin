@@ -11,8 +11,9 @@ Team names follow model.norm(): no trailing "FC"/"AFC".
 # Ligue 1 ends 2026-09-20, Ligue 2 ends 2025-11-03;
 # Eredivisie ends 2026-09-20, no Eerste Divisie data;
 # Belgian Pro League ends 2025-11-02, nothing from 2026-27;
-# Turkish Super Lig ends 2025-11-03, nothing from 2026-27. League One/Two end 2025-12-29), so lean on the market.
-MARKET_WEIGHT = {"PL": 0.7, "CH": 0.7, "L1": 0.85, "LL": 0.7, "LL2": 0.9, "SA": 0.7, "BL": 0.7, "FR": 0.7, "NL": 0.7, "BE": 0.85, "TR": 0.85}
+# Turkish Super Lig ends 2025-11-03, nothing from 2026-27;
+# Austrian Bundesliga and 2. Liga end 2025-11-02, nothing from 2026-27. League One/Two end 2025-12-29), so lean on the market.
+MARKET_WEIGHT = {"PL": 0.7, "CH": 0.7, "L1": 0.85, "LL": 0.7, "LL2": 0.9, "SA": 0.7, "BL": 0.7, "FR": 0.7, "NL": 0.7, "BE": 0.85, "TR": 0.85, "AT": 0.85}
 
 FIXTURES = {
     "PL": [  # 21-22 Nov 2026
@@ -140,5 +141,13 @@ FIXTURES = {
         {"when": "Sun 11:30", "home": "Erzurumspor", "away": "Göztepe", "odds": (2.94, 3.35, 2.44)},
         {"when": "Sun 14:00", "home": "Kasımpaşa SK", "away": "Alanyaspor", "odds": (1.98, 3.55, 3.75)},
         {"when": "Sun 14:00", "home": "Konyaspor", "away": "Beşiktaş", "odds": (5.20, 4.15, 1.62)},
+    ],
+    "AT": [  # Sat 21 - Sun 22 Nov 2026
+        {"when": "Sat 17:00", "home": "LASK", "away": "TSV Hartberg", "odds": (1.28, 6.10, 8.50)},
+        {"when": "Sat 17:00", "home": "WSG Tirol", "away": "Austria Lustenau", "odds": (1.73, 4.05, 4.30)},
+        {"when": "Sat 19:30", "home": "Grazer AK", "away": "Rapid Wien", "odds": (6.60, 4.80, 1.42)},
+        {"when": "Sun 14:30", "home": "Wolfsberger AC", "away": "SV Ried", "odds": (2.77, 3.70, 2.33)},
+        {"when": "Sun 14:30", "home": "SCR Altach", "away": "Sturm Graz", "odds": (3.60, 3.75, 1.94)},
+        {"when": "Sun 17:00", "home": "Austria Wien", "away": "RB Salzburg", "odds": (4.50, 4.30, 1.65)},
     ],
 }
