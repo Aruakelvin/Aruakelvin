@@ -5,8 +5,8 @@ Team names follow model.norm(): no trailing "FC"/"AFC".
 
 # Share of the final probability taken from the de-margined bookmaker odds.
 # The odds reflect current form, injuries and the table; the model's data is
-# stale (PL/CH end 2026-09-20; League One/Two end 2025-12-29), so lean on the market.
-MARKET_WEIGHT = {"PL": 0.7, "CH": 0.7, "L1": 0.85}
+# stale (PL/CH/LaLiga end 2026-09-20; LaLiga 2 ends 2025-11-03; League One/Two end 2025-12-29), so lean on the market.
+MARKET_WEIGHT = {"PL": 0.7, "CH": 0.7, "L1": 0.85, "LL": 0.7}
 
 FIXTURES = {
     "PL": [  # 21-22 Nov 2026
@@ -46,5 +46,16 @@ FIXTURES = {
         {"when": "Sat 16:00", "home": "Cambridge United", "away": "Stockport County", "odds": (3.70, 3.80, 1.86)},
         {"when": "Sat 16:00", "home": "Bradford City", "away": "Doncaster Rovers", "odds": (1.66, 3.80, 4.90)},
         {"when": "Sat 16:00", "home": "Oxford United", "away": "Wycombe Wanderers", "odds": (2.38, 3.30, 2.87)},
+    ],
+    "LL": [  # Fri 20 - Sun 22 Nov 2026 (Monday's games were not in the paste)
+        {"when": "Fri 21:00", "home": "Athletic Club", "away": "RCD Espanyol de Barcelona", "odds": (1.52, 4.45, 6.00)},
+        {"when": "Sat 14:00", "home": "Deportivo Alavés", "away": "Deportivo La Coruña", "odds": (2.26, 3.25, 3.30)},
+        {"when": "Sat 16:15", "home": "Rayo Vallecano de Madrid", "away": "Valencia CF", "odds": (1.95, 3.50, 4.00)},
+        {"when": "Sat 18:30", "home": "Sevilla", "away": "Real Betis Balompié", "odds": (2.93, 3.40, 2.42)},
+        {"when": "Sat 21:00", "home": "Real Madrid CF", "away": "RC Celta de Vigo", "odds": (1.16, 8.00, 15.00)},
+        {"when": "Sun 14:00", "home": "FC Barcelona", "away": "Villarreal CF", "odds": (1.23, 7.10, 10.25)},
+        {"when": "Sun 16:15", "home": "Racing Santander", "away": "Real Sociedad de Fútbol", "odds": (3.15, 4.10, 2.04)},
+        {"when": "Sun 18:30", "home": "CA Osasuna", "away": "Málaga CF", "odds": (1.84, 3.55, 4.40)},
+        {"when": "Sun 21:00", "home": "Getafe CF", "away": "Club Atlético de Madrid", "odds": (5.90, 3.90, 1.60)},
     ],
 }

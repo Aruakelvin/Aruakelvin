@@ -1,11 +1,12 @@
 """Dixon-Coles football model with time decay, blended with bookmaker odds.
 
 Usage:
-    python -m football_predictor.model --data DIR [--league PL|CH|L1] [--asof 2026-11-20] [--backtest]
+    python -m football_predictor.model --data DIR [--league PL|CH|L1|LL] [--asof 2026-11-20] [--backtest]
 
 DIR holds openfootball JSON files (en1_*.json = Premier League,
 en2_*.json = Championship, en3_*.json = League One,
-en4_*.json = League Two). Fixtures and odds live in fixtures.py.
+en4_*.json = League Two,
+es1_*.json = LaLiga, es2_*.json = LaLiga 2). Fixtures and odds live in fixtures.py.
 """
 from __future__ import annotations
 
@@ -36,17 +37,26 @@ class Match:
     league: str
 
 
-LEAGUE_FILES = {"en1": "PL", "en2": "CH", "en3": "L1", "en4": "L2"}
+LEAGUE_FILES = {"en1": "PL", "en2": "CH", "en3": "L1", "en4": "L2", "es1": "LL", "es2": "LL2"}
+COUNTRY = {"PL": "en", "CH": "en", "L1": "en", "LL": "es"}
+
+# Same club, different spelling between files (after norm()).
+ALIASES = {
+    "RC Deportivo La Coruña": "Deportivo La Coruña",
+    "Real Racing Club de Santander": "Racing Santander",
+    "Real Valladolid CF": "Real Valladolid",
+}
 
 
 def norm(team: str) -> str:
     """Make names consistent across files: 'Bolton Wanderers FC' == 'Bolton Wanderers'."""
-    return re.sub(r" A?FC$", "", team.strip())
+    team = re.sub(r" A?FC$", "", team.strip())
+    return ALIASES.get(team, team)
 
 
-def load_matches(data_dir: str) -> list[Match]:
+def load_matches(data_dir: str, country: str = "en") -> list[Match]:
     out = []
-    for path in sorted(glob.glob(os.path.join(data_dir, "en[1-4]_*.json"))):
+    for path in sorted(glob.glob(os.path.join(data_dir, f"{country}[1-4]_*.json"))):
         league = LEAGUE_FILES[os.path.basename(path)[:3]]
         for m in json.load(open(path))["matches"]:
             score = m.get("score")
@@ -181,7 +191,7 @@ def main():
     ap.add_argument("--backtest", action="store_true")
     args = ap.parse_args()
     asof = date.fromisoformat(args.asof)
-    matches = load_matches(args.data)
+    matches = load_matches(args.data, COUNTRY[args.league])
     print(f"Loaded {len(matches)} matches, last result {matches[-1].day}")
 
     if args.backtest:
