@@ -7,8 +7,9 @@ Team names follow model.norm(): no trailing "FC"/"AFC".
 # The odds reflect current form, injuries and the table; the model's data is
 # stale (PL/CH/LaLiga end 2026-09-20; LaLiga 2 ends 2025-11-03, nothing from 2026-27;
 # Serie A ends 2026-09-20, Serie B ends 2026-03-17;
-# Bundesliga ends 2026-09-20, 2. Bundesliga ends 2025-11-02. League One/Two end 2025-12-29), so lean on the market.
-MARKET_WEIGHT = {"PL": 0.7, "CH": 0.7, "L1": 0.85, "LL": 0.7, "LL2": 0.9, "SA": 0.7, "BL": 0.7}
+# Bundesliga ends 2026-09-20, 2. Bundesliga ends 2025-11-02;
+# Ligue 1 ends 2026-09-20, Ligue 2 ends 2025-11-03. League One/Two end 2025-12-29), so lean on the market.
+MARKET_WEIGHT = {"PL": 0.7, "CH": 0.7, "L1": 0.85, "LL": 0.7, "LL2": 0.9, "SA": 0.7, "BL": 0.7, "FR": 0.7}
 
 FIXTURES = {
     "PL": [  # 21-22 Nov 2026
@@ -94,5 +95,16 @@ FIXTURES = {
         {"when": "Sat 18:30", "home": "FC Schalke 04", "away": "VfB Stuttgart", "odds": (3.90, 4.05, 1.83)},
         {"when": "Sun 15:30", "home": "FC Augsburg", "away": "1. FSV Mainz 05", "odds": (2.65, 3.85, 2.42)},
         {"when": "Sun 17:30", "home": "SV Werder Bremen", "away": "Hamburger SV", "odds": (1.68, 4.25, 4.50)},
+    ],
+    "FR": [  # Fri 20 - Sun 22 Nov 2026 (key "FR" because "L1" is League One)
+        {"when": "Fri 20:45", "home": "ES Troyes AC", "away": "Le Havre AC", "odds": (2.26, 3.40, 3.20)},
+        {"when": "Sat 17:15", "home": "OGC Nice", "away": "Paris Saint-Germain", "odds": (5.80, 5.05, 1.47)},
+        {"when": "Sat 20:45", "home": "RC Strasbourg Alsace", "away": "Stade Brestois 29", "odds": (2.28, 3.65, 2.97)},
+        {"when": "Sat 20:45", "home": "Racing Club de Lens", "away": "Toulouse", "odds": (1.90, 3.90, 3.75)},
+        {"when": "Sat 20:45", "home": "Lille OSC", "away": "Olympique Lyonnais", "odds": (2.30, 3.25, 3.25)},
+        {"when": "Sat 20:45", "home": "AS Monaco", "away": "AJ Auxerre", "odds": (1.42, 5.05, 6.70)},
+        {"when": "Sun 15:00", "home": "Paris", "away": "Angers SCO", "odds": (1.36, 5.20, 8.40)},
+        {"when": "Sun 17:15", "home": "FC Lorient", "away": "Stade Rennais FC 1901", "odds": (2.82, 3.40, 2.50)},
+        {"when": "Sun 20:45", "home": "Olympique de Marseille", "away": "Le Mans", "odds": (1.48, 4.80, 5.90)},
     ],
 }
