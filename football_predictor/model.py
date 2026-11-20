@@ -1,10 +1,10 @@
 """Dixon-Coles football model with time decay, blended with bookmaker odds.
 
 Usage:
-    python -m football_predictor.model --data DIR [--asof 2026-11-20] [--backtest]
+    python -m football_predictor.model --data DIR [--league PL|CH] [--asof 2026-11-20] [--backtest]
 
 DIR holds openfootball JSON files (en1_*.json = Premier League,
-en2_*.json = Championship). Fixtures and odds live in fixtures.py.
+en2_*.json = Championship, en3_*.json = League One). Fixtures and odds live in fixtures.py.
 """
 from __future__ import annotations
 
@@ -13,6 +13,7 @@ import glob
 import json
 import math
 import os
+import re
 from dataclasses import dataclass
 from datetime import date
 
@@ -34,16 +35,24 @@ class Match:
     league: str
 
 
+LEAGUE_FILES = {"en1": "PL", "en2": "CH", "en3": "L1"}
+
+
+def norm(team: str) -> str:
+    """Make names consistent across files: 'Bolton Wanderers FC' == 'Bolton Wanderers'."""
+    return re.sub(r" A?FC$", "", team.strip())
+
+
 def load_matches(data_dir: str) -> list[Match]:
     out = []
-    for path in sorted(glob.glob(os.path.join(data_dir, "en[12]_*.json"))):
-        league = "PL" if os.path.basename(path).startswith("en1") else "CH"
+    for path in sorted(glob.glob(os.path.join(data_dir, "en[123]_*.json"))):
+        league = LEAGUE_FILES[os.path.basename(path)[:3]]
         for m in json.load(open(path))["matches"]:
             score = m.get("score")
             ft = score.get("ft") if isinstance(score, dict) else None
             if not ft:
                 continue
-            out.append(Match(date.fromisoformat(m["date"]), m["team1"], m["team2"],
+            out.append(Match(date.fromisoformat(m["date"]), norm(m["team1"]), norm(m["team2"]),
                              int(ft[0]), int(ft[1]), league))
     return sorted(out, key=lambda x: x.day)
 
@@ -137,9 +146,9 @@ def devig(odds: tuple[float, float, float]) -> np.ndarray:
     return inv / inv.sum()
 
 
-def backtest(matches: list[Match], start: date, end: date, refit_days: int = 14):
-    """Walk forward through PL matches in [start, end), refitting every refit_days."""
-    pl = [m for m in matches if m.league == "PL" and start <= m.day < end]
+def backtest(matches: list[Match], start: date, end: date, league: str = "PL", refit_days: int = 14):
+    """Walk forward through one league's matches in [start, end), refitting every refit_days."""
+    pl = [m for m in matches if m.league == league and start <= m.day < end]
     correct = n = 0
     brier = logloss = 0.0
     cut = start
@@ -163,9 +172,11 @@ def backtest(matches: list[Match], start: date, end: date, refit_days: int = 14)
 def main():
     from football_predictor.fixtures import FIXTURES, MARKET_WEIGHT
 
+
     ap = argparse.ArgumentParser()
     ap.add_argument("--data", required=True)
     ap.add_argument("--asof", default=date.today().isoformat())
+    ap.add_argument("--league", default="PL", choices=sorted(FIXTURES))
     ap.add_argument("--backtest", action="store_true")
     args = ap.parse_args()
     asof = date.fromisoformat(args.asof)
@@ -173,14 +184,14 @@ def main():
     print(f"Loaded {len(matches)} matches, last result {matches[-1].day}")
 
     if args.backtest:
-        r = backtest(matches, date(2025, 8, 1), date(2026, 6, 1))
-        print(f"Backtest 2025-26 PL: {r['matches']} matches, accuracy {r['accuracy']:.1%}, "
+        r = backtest(matches, date(2025, 8, 1), date(2026, 6, 1), args.league)
+        print(f"Backtest 2025-26 {args.league}: {r['matches']} matches, accuracy {r['accuracy']:.1%}, "
               f"Brier {r['brier']:.3f}, log loss {r['logloss']:.3f} "
               f"(always-home baseline Brier ~0.66, log loss ~1.09)")
 
     model = DixonColes().fit(matches, asof)
     print(f"Home advantage x{math.exp(model.home_adv):.2f}, rho {model.rho:.3f}\n")
-    for f in FIXTURES:
+    for f in FIXTURES[args.league]:
         mat = model.score_matrix(f["home"], f["away"])
         mk = markets(mat)
         lam, mu = model.expected_goals(f["home"], f["away"])
