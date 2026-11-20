@@ -12,8 +12,9 @@ Team names follow model.norm(): no trailing "FC"/"AFC".
 # Eredivisie ends 2026-09-20, no Eerste Divisie data;
 # Belgian Pro League ends 2025-11-02, nothing from 2026-27;
 # Turkish Super Lig ends 2025-11-03, nothing from 2026-27;
-# Austrian Bundesliga and 2. Liga end 2025-11-02, nothing from 2026-27. League One/Two end 2025-12-29), so lean on the market.
-MARKET_WEIGHT = {"PL": 0.7, "CH": 0.7, "L1": 0.85, "LL": 0.7, "LL2": 0.9, "SA": 0.7, "BL": 0.7, "FR": 0.7, "NL": 0.7, "BE": 0.85, "TR": 0.85, "AT": 0.85}
+# Austrian Bundesliga and 2. Liga end 2025-11-02, nothing from 2026-27;
+# Scottish Premiership ends 2025-11-01, nothing from 2026-27. League One/Two end 2025-12-29), so lean on the market.
+MARKET_WEIGHT = {"PL": 0.7, "CH": 0.7, "L1": 0.85, "LL": 0.7, "LL2": 0.9, "SA": 0.7, "BL": 0.7, "FR": 0.7, "NL": 0.7, "BE": 0.85, "TR": 0.85, "AT": 0.85, "SCO": 0.85}
 
 FIXTURES = {
     "PL": [  # 21-22 Nov 2026
@@ -149,5 +150,13 @@ FIXTURES = {
         {"when": "Sun 14:30", "home": "Wolfsberger AC", "away": "SV Ried", "odds": (2.77, 3.70, 2.33)},
         {"when": "Sun 14:30", "home": "SCR Altach", "away": "Sturm Graz", "odds": (3.60, 3.75, 1.94)},
         {"when": "Sun 17:00", "home": "Austria Wien", "away": "RB Salzburg", "odds": (4.50, 4.30, 1.65)},
+    ],
+    "SCO": [  # Sat 21 Nov 2026
+        {"when": "Sat 16:00", "home": "Hibernian", "away": "Dundee United", "odds": (2.03, 3.70, 3.35)},
+        {"when": "Sat 16:00", "home": "Celtic", "away": "St. Mirren", "odds": (1.17, 7.70, 12.75)},
+        {"when": "Sat 16:00", "home": "Falkirk", "away": "St. Johnstone", "odds": (1.82, 3.75, 4.10)},
+        {"when": "Sat 16:00", "home": "Kilmarnock", "away": "Aberdeen", "odds": (2.56, 3.50, 2.62)},
+        {"when": "Sat 18:45", "home": "Dundee", "away": "Heart of Midlothian", "odds": (3.20, 3.75, 2.08)},
+        {"when": "Sat 21:00", "home": "Motherwell", "away": "Rangers", "odds": (5.30, 4.40, 1.56)},
     ],
 }

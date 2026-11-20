@@ -1,7 +1,7 @@
 """Dixon-Coles football model with time decay, blended with bookmaker odds.
 
 Usage:
-    python -m football_predictor.model --data DIR [--league PL|CH|L1|LL|LL2|SA|BL|FR|NL|BE|TR|AT] [--asof 2026-11-20] [--backtest]
+    python -m football_predictor.model --data DIR [--league PL|CH|L1|LL|LL2|SA|BL|FR|NL|BE|TR|AT|SCO] [--asof 2026-11-20] [--backtest]
 
 DIR holds openfootball JSON files (en1_*.json = Premier League,
 en2_*.json = Championship, en3_*.json = League One,
@@ -12,7 +12,8 @@ de1_*.json = Bundesliga, de2_*.json = 2. Bundesliga,
 fr1_*.json = Ligue 1, fr2_*.json = Ligue 2,
 nl1_*.json = Eredivisie, be1_*.json = Belgian Pro League,
 tr1_*.json = Turkish Super Lig,
-at1_*.json = Austrian Bundesliga, at2_*.json = Austrian 2. Liga). Fixtures and odds live in fixtures.py.
+at1_*.json = Austrian Bundesliga, at2_*.json = Austrian 2. Liga,
+sc1_*.json = Scottish Premiership). Fixtures and odds live in fixtures.py.
 """
 from __future__ import annotations
 
@@ -48,8 +49,9 @@ LEAGUE_FILES = {"en1": "PL", "en2": "CH", "en3": "L1", "en4": "L2", "es1": "LL",
                 "de1": "BL", "de2": "BL2",
                 "fr1": "FR", "fr2": "FR2",
                 "nl1": "NL", "be1": "BE", "tr1": "TR",
-                "at1": "AT", "at2": "AT2"}
-COUNTRY = {"PL": "en", "CH": "en", "L1": "en", "LL": "es", "LL2": "es", "SA": "it", "BL": "de", "FR": "fr", "NL": "nl", "BE": "be", "TR": "tr", "AT": "at"}
+                "at1": "AT", "at2": "AT2",
+                "sc1": "SCO"}
+COUNTRY = {"PL": "en", "CH": "en", "L1": "en", "LL": "es", "LL2": "es", "SA": "it", "BL": "de", "FR": "fr", "NL": "nl", "BE": "be", "TR": "tr", "AT": "at", "SCO": "sc"}
 
 # Same club, different spelling between files (after norm()).
 ALIASES = {
