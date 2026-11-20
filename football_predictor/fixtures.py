@@ -5,8 +5,9 @@ Team names follow model.norm(): no trailing "FC"/"AFC".
 
 # Share of the final probability taken from the de-margined bookmaker odds.
 # The odds reflect current form, injuries and the table; the model's data is
-# stale (PL/CH/LaLiga end 2026-09-20; LaLiga 2 ends 2025-11-03, nothing from 2026-27; League One/Two end 2025-12-29), so lean on the market.
-MARKET_WEIGHT = {"PL": 0.7, "CH": 0.7, "L1": 0.85, "LL": 0.7, "LL2": 0.9}
+# stale (PL/CH/LaLiga end 2026-09-20; LaLiga 2 ends 2025-11-03, nothing from 2026-27;
+# Serie A ends 2026-09-20, Serie B ends 2026-03-17; League One/Two end 2025-12-29), so lean on the market.
+MARKET_WEIGHT = {"PL": 0.7, "CH": 0.7, "L1": 0.85, "LL": 0.7, "LL2": 0.9, "SA": 0.7}
 
 FIXTURES = {
     "PL": [  # 21-22 Nov 2026
@@ -70,5 +71,16 @@ FIXTURES = {
         {"when": "Sun 18:30", "home": "Girona", "away": "SD Eibar", "odds": (1.80, 3.75, 4.25)},
         {"when": "Sun 21:00", "home": "Burgos CF", "away": "Albacete", "odds": (2.05, 3.30, 3.70)},
         {"when": "Mon 20:30", "home": "AD Ceuta", "away": "UD Almería", "odds": (3.40, 3.85, 1.97)},
+    ],
+    "SA": [  # Sat 21 - Sun 22 Nov 2026
+        {"when": "Sat 15:00", "home": "Como 1907", "away": "Cagliari Calcio", "odds": (1.30, 5.70, 8.90)},
+        {"when": "Sat 15:00", "home": "SS Lazio", "away": "US Lecce", "odds": (1.42, 4.80, 7.20)},
+        {"when": "Sat 18:00", "home": "Parma Calcio 1913", "away": "AS Roma", "odds": (9.50, 5.60, 1.30)},
+        {"when": "Sat 20:45", "home": "SSC Napoli", "away": "Torino", "odds": (1.50, 4.50, 6.20)},
+        {"when": "Sun 12:30", "home": "Juventus", "away": "Venezia", "odds": (1.38, 5.00, 7.70)},
+        {"when": "Sun 15:00", "home": "Sassuolo Calcio", "away": "Genoa CFC", "odds": (2.75, 3.35, 2.57)},
+        {"when": "Sun 15:00", "home": "Bologna FC 1909", "away": "Udinese Calcio", "odds": (1.75, 3.75, 4.80)},
+        {"when": "Sun 18:00", "home": "AC Milan", "away": "Frosinone Calcio", "odds": (1.55, 4.70, 5.20)},
+        {"when": "Sun 20:45", "home": "Atalanta BC", "away": "FC Internazionale Milano", "odds": (4.90, 4.50, 1.60)},
     ],
 }
