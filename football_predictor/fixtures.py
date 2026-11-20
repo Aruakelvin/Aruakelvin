@@ -9,8 +9,9 @@ Team names follow model.norm(): no trailing "FC"/"AFC".
 # Serie A ends 2026-09-20, Serie B ends 2026-03-17;
 # Bundesliga ends 2026-09-20, 2. Bundesliga ends 2025-11-02;
 # Ligue 1 ends 2026-09-20, Ligue 2 ends 2025-11-03;
-# Eredivisie ends 2026-09-20, no Eerste Divisie data. League One/Two end 2025-12-29), so lean on the market.
-MARKET_WEIGHT = {"PL": 0.7, "CH": 0.7, "L1": 0.85, "LL": 0.7, "LL2": 0.9, "SA": 0.7, "BL": 0.7, "FR": 0.7, "NL": 0.7}
+# Eredivisie ends 2026-09-20, no Eerste Divisie data;
+# Belgian Pro League ends 2025-11-02, nothing from 2026-27. League One/Two end 2025-12-29), so lean on the market.
+MARKET_WEIGHT = {"PL": 0.7, "CH": 0.7, "L1": 0.85, "LL": 0.7, "LL2": 0.9, "SA": 0.7, "BL": 0.7, "FR": 0.7, "NL": 0.7, "BE": 0.85}
 
 FIXTURES = {
     "PL": [  # 21-22 Nov 2026
@@ -118,5 +119,16 @@ FIXTURES = {
         {"when": "Sun 14:30", "home": "AFC Ajax", "away": "ADO Den Haag", "odds": (1.19, 7.80, 12.25)},
         {"when": "Sun 14:30", "home": "Sparta Rotterdam", "away": "AZ", "odds": (4.20, 4.25, 1.74)},
         {"when": "Sun 16:45", "home": "Go Ahead Eagles", "away": "Fortuna Sittard", "odds": (1.64, 4.40, 4.75)},
+    ],
+    "BE": [  # Fri 20 - Sun 22 Nov 2026
+        {"when": "Fri 20:45", "home": "Cercle Brugge", "away": "KVC Westerlo", "odds": (2.02, 3.75, 3.35)},
+        {"when": "Sat 16:00", "home": "Sporting Charleroi", "away": "Sint-Truidense VV", "odds": (2.02, 3.70, 3.35)},
+        {"when": "Sat 18:15", "home": "KRC Genk", "away": "RAAL La Louviére", "odds": (1.46, 4.75, 6.20)},
+        {"when": "Sat 20:45", "home": "KV Mechelen", "away": "Club Brugge KV", "odds": (6.40, 5.15, 1.40)},
+        {"when": "Sat 20:45", "home": "SV Zulte Waregem", "away": "Royal Antwerp", "odds": (2.20, 3.50, 3.10)},
+        {"when": "Sun 13:30", "home": "Waasland-Beveren", "away": "KAA Gent", "odds": (3.55, 3.50, 2.02)},
+        {"when": "Sun 16:00", "home": "KV Kortrijk", "away": "Union Saint-Gilloise", "odds": (7.20, 4.90, 1.40)},
+        {"when": "Sun 18:30", "home": "RSC Anderlecht", "away": "Oud-Heverlee Leuven", "odds": (1.47, 4.60, 6.10)},
+        {"when": "Sun 19:15", "home": "Lommel SK", "away": "Standard Liège", "odds": (3.20, 3.60, 2.12)},
     ],
 }
