@@ -3,9 +3,10 @@
 Team names follow model.norm(): no trailing "FC"/"AFC".
 """
 
-# The model's data ends on 2026-09-20, but the odds reflect current form,
-# injuries and the table, so we lean on the market.
-MARKET_WEIGHT = 0.7
+# Share of the final probability taken from the de-margined bookmaker odds.
+# The odds reflect current form, injuries and the table; the model's data is
+# stale (PL/CH end 2026-09-20; League One/Two end 2025-12-29), so lean on the market.
+MARKET_WEIGHT = {"PL": 0.7, "CH": 0.7, "L1": 0.85}
 
 FIXTURES = {
     "PL": [  # 21-22 Nov 2026
@@ -31,5 +32,19 @@ FIXTURES = {
         {"when": "Sat 16:00", "home": "Swansea City", "away": "West Bromwich Albion", "odds": (2.60, 3.20, 2.77)},
         {"when": "Sat 16:00", "home": "Stoke City", "away": "Birmingham City", "odds": (2.95, 3.10, 2.50)},
         {"when": "Sat 16:00", "home": "Wolverhampton Wanderers", "away": "Charlton Athletic", "odds": (1.33, 5.20, 8.40)},
+    ],
+    "L1": [  # Fri 20 - Sat 21 Nov 2026
+        {"when": "Fri 21:00", "home": "Barnsley", "away": "Sheffield Wednesday", "odds": (3.00, 3.65, 2.16)},
+        {"when": "Sat 13:30", "home": "Reading", "away": "Bromley", "odds": (1.37, 5.00, 7.00)},
+        {"when": "Sat 13:30", "home": "Blackpool", "away": "Wigan Athletic", "odds": (2.13, 3.30, 3.35)},
+        {"when": "Sat 16:00", "home": "Mansfield Town", "away": "Milton Keynes Dons", "odds": (2.56, 3.30, 2.64)},
+        {"when": "Sat 16:00", "home": "Burton Albion", "away": "Luton Town", "odds": (4.65, 3.80, 1.68)},
+        {"when": "Sat 16:00", "home": "Notts County", "away": "Stevenage", "odds": (2.28, 3.15, 3.20)},
+        {"when": "Sat 16:00", "home": "Leyton Orient", "away": "AFC Wimbledon", "odds": (1.76, 3.75, 4.25)},
+        {"when": "Sat 16:00", "home": "Plymouth Argyle", "away": "Peterborough United", "odds": (1.80, 3.90, 3.90)},
+        {"when": "Sat 16:00", "home": "Huddersfield Town", "away": "Leicester City", "odds": (2.02, 3.50, 3.45)},
+        {"when": "Sat 16:00", "home": "Cambridge United", "away": "Stockport County", "odds": (3.70, 3.80, 1.86)},
+        {"when": "Sat 16:00", "home": "Bradford City", "away": "Doncaster Rovers", "odds": (1.66, 3.80, 4.90)},
+        {"when": "Sat 16:00", "home": "Oxford United", "away": "Wycombe Wanderers", "odds": (2.38, 3.30, 2.87)},
     ],
 }

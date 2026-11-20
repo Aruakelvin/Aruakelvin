@@ -1,10 +1,11 @@
 """Dixon-Coles football model with time decay, blended with bookmaker odds.
 
 Usage:
-    python -m football_predictor.model --data DIR [--league PL|CH] [--asof 2026-11-20] [--backtest]
+    python -m football_predictor.model --data DIR [--league PL|CH|L1] [--asof 2026-11-20] [--backtest]
 
 DIR holds openfootball JSON files (en1_*.json = Premier League,
-en2_*.json = Championship, en3_*.json = League One). Fixtures and odds live in fixtures.py.
+en2_*.json = Championship, en3_*.json = League One,
+en4_*.json = League Two). Fixtures and odds live in fixtures.py.
 """
 from __future__ import annotations
 
@@ -35,7 +36,7 @@ class Match:
     league: str
 
 
-LEAGUE_FILES = {"en1": "PL", "en2": "CH", "en3": "L1"}
+LEAGUE_FILES = {"en1": "PL", "en2": "CH", "en3": "L1", "en4": "L2"}
 
 
 def norm(team: str) -> str:
@@ -45,7 +46,7 @@ def norm(team: str) -> str:
 
 def load_matches(data_dir: str) -> list[Match]:
     out = []
-    for path in sorted(glob.glob(os.path.join(data_dir, "en[123]_*.json"))):
+    for path in sorted(glob.glob(os.path.join(data_dir, "en[1-4]_*.json"))):
         league = LEAGUE_FILES[os.path.basename(path)[:3]]
         for m in json.load(open(path))["matches"]:
             score = m.get("score")
@@ -190,6 +191,7 @@ def main():
               f"(always-home baseline Brier ~0.66, log loss ~1.09)")
 
     model = DixonColes().fit(matches, asof)
+    print(f"Blend: {MARKET_WEIGHT[args.league]:.0%} bookmaker odds, {1 - MARKET_WEIGHT[args.league]:.0%} model")
     print(f"Home advantage x{math.exp(model.home_adv):.2f}, rho {model.rho:.3f}\n")
     for f in FIXTURES[args.league]:
         mat = model.score_matrix(f["home"], f["away"])
@@ -197,7 +199,8 @@ def main():
         lam, mu = model.expected_goals(f["home"], f["away"])
         mod = np.array([mk["1"], mk["X"], mk["2"]])
         mkt = devig(f["odds"])
-        blend = MARKET_WEIGHT * mkt + (1 - MARKET_WEIGHT) * mod
+        wt = MARKET_WEIGHT[args.league]
+        blend = wt * mkt + (1 - wt) * mod
         edge = blend * np.array(f["odds"]) - 1
         print(f"{f['home']} v {f['away']}  ({f['when']})  xG {lam:.2f}-{mu:.2f}")
         print("   model  1 {:.0%}  X {:.0%}  2 {:.0%}".format(*mod))
