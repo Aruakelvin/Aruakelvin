@@ -6,8 +6,9 @@ Team names follow model.norm(): no trailing "FC"/"AFC".
 # Share of the final probability taken from the de-margined bookmaker odds.
 # The odds reflect current form, injuries and the table; the model's data is
 # stale (PL/CH/LaLiga end 2026-09-20; LaLiga 2 ends 2025-11-03, nothing from 2026-27;
-# Serie A ends 2026-09-20, Serie B ends 2026-03-17; League One/Two end 2025-12-29), so lean on the market.
-MARKET_WEIGHT = {"PL": 0.7, "CH": 0.7, "L1": 0.85, "LL": 0.7, "LL2": 0.9, "SA": 0.7}
+# Serie A ends 2026-09-20, Serie B ends 2026-03-17;
+# Bundesliga ends 2026-09-20, 2. Bundesliga ends 2025-11-02. League One/Two end 2025-12-29), so lean on the market.
+MARKET_WEIGHT = {"PL": 0.7, "CH": 0.7, "L1": 0.85, "LL": 0.7, "LL2": 0.9, "SA": 0.7, "BL": 0.7}
 
 FIXTURES = {
     "PL": [  # 21-22 Nov 2026
@@ -82,5 +83,16 @@ FIXTURES = {
         {"when": "Sun 15:00", "home": "Bologna FC 1909", "away": "Udinese Calcio", "odds": (1.75, 3.75, 4.80)},
         {"when": "Sun 18:00", "home": "AC Milan", "away": "Frosinone Calcio", "odds": (1.55, 4.70, 5.20)},
         {"when": "Sun 20:45", "home": "Atalanta BC", "away": "FC Internazionale Milano", "odds": (4.90, 4.50, 1.60)},
+    ],
+    "BL": [  # Fri 20 - Sun 22 Nov 2026
+        {"when": "Fri 20:30", "home": "FC Bayern München", "away": "1. FC Köln", "odds": (1.08, 12.00, 22.00)},
+        {"when": "Sat 15:30", "home": "SV 07 Elversberg", "away": "SC Freiburg", "odds": (3.50, 3.75, 2.00)},
+        {"when": "Sat 15:30", "home": "Borussia Mönchengladbach", "away": "Borussia Dortmund", "odds": (4.95, 4.40, 1.62)},
+        {"when": "Sat 15:30", "home": "Bayer 04 Leverkusen", "away": "SC Paderborn 07", "odds": (1.32, 5.80, 8.30)},
+        {"when": "Sat 15:30", "home": "1. FC Union Berlin", "away": "RB Leipzig", "odds": (5.60, 4.75, 1.52)},
+        {"when": "Sat 15:30", "home": "Eintracht Frankfurt", "away": "TSG 1899 Hoffenheim", "odds": (2.42, 3.90, 2.63)},
+        {"when": "Sat 18:30", "home": "FC Schalke 04", "away": "VfB Stuttgart", "odds": (3.90, 4.05, 1.83)},
+        {"when": "Sun 15:30", "home": "FC Augsburg", "away": "1. FSV Mainz 05", "odds": (2.65, 3.85, 2.42)},
+        {"when": "Sun 17:30", "home": "SV Werder Bremen", "away": "Hamburger SV", "odds": (1.68, 4.25, 4.50)},
     ],
 }

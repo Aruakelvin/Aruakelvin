@@ -1,13 +1,14 @@
 """Dixon-Coles football model with time decay, blended with bookmaker odds.
 
 Usage:
-    python -m football_predictor.model --data DIR [--league PL|CH|L1|LL|LL2|SA] [--asof 2026-11-20] [--backtest]
+    python -m football_predictor.model --data DIR [--league PL|CH|L1|LL|LL2|SA|BL] [--asof 2026-11-20] [--backtest]
 
 DIR holds openfootball JSON files (en1_*.json = Premier League,
 en2_*.json = Championship, en3_*.json = League One,
 en4_*.json = League Two,
 es1_*.json = LaLiga, es2_*.json = LaLiga 2,
-it1_*.json = Serie A, it2_*.json = Serie B). Fixtures and odds live in fixtures.py.
+it1_*.json = Serie A, it2_*.json = Serie B,
+de1_*.json = Bundesliga, de2_*.json = 2. Bundesliga). Fixtures and odds live in fixtures.py.
 """
 from __future__ import annotations
 
@@ -39,8 +40,9 @@ class Match:
 
 
 LEAGUE_FILES = {"en1": "PL", "en2": "CH", "en3": "L1", "en4": "L2", "es1": "LL", "es2": "LL2",
-                "it1": "SA", "it2": "SB"}
-COUNTRY = {"PL": "en", "CH": "en", "L1": "en", "LL": "es", "LL2": "es", "SA": "it"}
+                "it1": "SA", "it2": "SB",
+                "de1": "BL", "de2": "BL2"}
+COUNTRY = {"PL": "en", "CH": "en", "L1": "en", "LL": "es", "LL2": "es", "SA": "it", "BL": "de"}
 
 # Same club, different spelling between files (after norm()).
 ALIASES = {
@@ -49,6 +51,7 @@ ALIASES = {
     "Real Valladolid CF": "Real Valladolid",
     "US Sassuolo Calcio": "Sassuolo Calcio",
     "AC Pisa 1909": "Pisa SC",
+    "VfL Bochum 1848": "VfL Bochum",
 }
 
 
